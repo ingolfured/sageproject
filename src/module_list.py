@@ -1399,6 +1399,11 @@ ext_modules = [
               language = 'c++',
               libraries=["stdc++", "glpk", "gmp", "z"]),
 
+    Extension("sage.numerical.backends.cvxopt_backend",
+              ["sage/numerical/backends/cvxopt_backend.pyx"],
+              include_dirs = [SAGE_INC, "sage/c_lib/include/"],
+              libraries=["stdc++"]),
+
     Extension("sage.numerical.backends.ppl_backend",
               ["sage/numerical/backends/ppl_backend.pyx"],
               include_dirs = [SAGE_INC, "sage/c_lib/include/"],

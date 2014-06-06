@@ -287,7 +287,7 @@ cdef class PPLBackend(GenericBackend):
         if coeff is not None:
             self.objective_function[variable] = coeff;
         else:
-            return self.objective_function[variable]
+            return float(self.objective_function[variable])
 
     cpdef  set_objective(self, list coeff, d = 0):
         """
