@@ -508,11 +508,11 @@ cdef class CVXOPTBackend(GenericBackend):
         """
         from cvxopt import matrix, solvers
         #multiply by -1 if necessary
-        print str("G_matrix is: " ) + str(self.G_matrix)
-        print str("lower bound eq is: " ) + str(self.row_lower_bound)
-        print str("upper bound eq is: " ) + str(self.row_upper_bound)
-        print str("lower bound var is: " ) + str(self.col_lower_bound)
-        print str("upper bound var is: " ) + str(self.col_upper_bound)
+        #print str("G_matrix is: " ) + str(self.G_matrix)
+        #print str("lower bound eq is: " ) + str(self.row_lower_bound)
+        #print str("upper bound eq is: " ) + str(self.row_upper_bound)
+        #print str("lower bound var is: " ) + str(self.col_lower_bound)
+        #print str("upper bound var is: " ) + str(self.col_upper_bound)
 
         h = []
 
@@ -554,14 +554,14 @@ cdef class CVXOPTBackend(GenericBackend):
                 tempcol.append( float(col[i]) )
             G.append(tempcol)
 
-        print str("G is: " ) + str(G)
+        #print str("G is: " ) + str(G)
         G = matrix(G)
 
         c = [float(e) for e in self.objective_function]
-        print str("c is: " ) + str(c)
+        #print str("c is: " ) + str(c)
         c = matrix(c)
 
-        print str("h is: " ) + str(h)
+        #print str("h is: " ) + str(h)
         h = [float(e) for e in h]
         h = matrix(h)
 
@@ -614,7 +614,7 @@ cdef class CVXOPTBackend(GenericBackend):
         """
         sum = self.obj_constant_term
         i = 0
-        print "x: " + str(self.answer['x'])
+        #print "x: " + str(self.answer['x'])
         #print "s: " + str(self.answer['s'])
         #print "z: " + str(self.answer['z'])
         #print "y: " + str(self.answer['y'])
