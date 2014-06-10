@@ -17,12 +17,14 @@ AUTHORS:
 
 
 from sage.numerical.mip import MIPSolverException
+from cvxopt import solvers
 
 cdef class CVXOPTBackend(GenericBackend):
     cdef list objective_function #c_matrix
     cdef list G_matrix
     cdef str prob_name
     cdef int is_maximize
+    cdef object sol
 
     cdef list row_lower_bound
     cdef list row_upper_bound
@@ -492,6 +494,17 @@ cdef class CVXOPTBackend(GenericBackend):
             sage: p.add_constraint(x + 2*y <= 3)
             sage: round(p.solve(), 2)
             -9.0
+            sage: p = MixedIntegerLinearProgram(solver = "cvxopt")
+            sage: x=p.new_variable(nonnegative=True)[0]
+            sage: y=p.new_variable(nonnegative=True)[0]
+            sage: p.set_objective(x + 2*y)
+            sage: p.add_constraint(-5*x + y  <=   7)
+            sage: p.add_constraint(-5*x + y  >=   7)
+            sage: p.add_constraint(x + y >= 26  )
+            sage: p.add_constraint( x >= 3)
+            sage: p.add_constraint( y >= 4)
+            sage: round(p.solve(),2)
+            48.83
         """
 
         """
@@ -506,7 +519,7 @@ cdef class CVXOPTBackend(GenericBackend):
             sage: round(p.solve(), 2)
             8.8
         """
-        from cvxopt import matrix, solvers
+        from cvxopt import matrix
         #multiply by -1 if necessary
         #print str("G_matrix is: " ) + str(self.G_matrix)
         #print str("lower bound eq is: " ) + str(self.row_lower_bound)
@@ -597,20 +610,17 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variables(2)
-            1
-            sage: p.add_linear_constraint([(0,1), (1,2)], None, 3)
-            sage: p.set_objective([2, 5])
-            sage: p.solve()
-            0
-            sage: p.get_objective_value()
-            15/2
-            sage: p.get_variable_value(0)
-            0
-            sage: p.get_variable_value(1)
-            3/2
+            sage: p = MixedIntegerLinearProgram(solver = "cvxopt")
+            sage: x=p.new_variable(nonnegative=True)[0]
+            sage: y=p.new_variable(nonnegative=True)[0]
+            sage: p.set_objective(x + 2*y)
+            sage: p.add_constraint(-5*x + y  <=   7)
+            sage: p.add_constraint(-5*x + y  >=   7)
+            sage: p.add_constraint(x + y >= 26  )
+            sage: p.add_constraint( x >= 3)
+            sage: p.add_constraint( y >= 4)
+            sage: round(p.solve(),2)
+            48.83
         """
         sum = self.obj_constant_term
         i = 0
@@ -984,8 +994,8 @@ cdef class CVXOPTBackend(GenericBackend):
           (default), the method returns the current value.
 
         EXAMPLE::
-
             sage: from sage.numerical.backends.generic_backend import get_solver
+
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variable()
             0
