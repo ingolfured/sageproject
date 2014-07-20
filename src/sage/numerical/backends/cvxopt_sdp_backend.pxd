@@ -5,4 +5,4 @@
 #                  http://www.gnu.org/licenses/
 ##############################################################################
 
-from generic_backend cimport GenericBackend
+from generic_sdp_backend cimport GenericSDPBackend

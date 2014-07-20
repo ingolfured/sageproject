@@ -1,5 +1,5 @@
 r"""
-CVXOPT Backend
+CVXOPT SDP Backend
 
 
 AUTHORS:
@@ -16,10 +16,10 @@ AUTHORS:
 ##############################################################################
 
 
-from sage.numerical.mip import MIPSolverException
+from sage.numerical.sdp import SDPSolverException
 from cvxopt import solvers
 
-cdef class CVXOPTBackend(GenericBackend):
+cdef class CVXOPTSDPBackend(GenericSDPBackend):
     cdef list objective_function #c_matrix
     cdef list G_matrix
     cdef str prob_name
@@ -42,7 +42,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
 
         """
@@ -101,7 +101,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.ncols()
             0
@@ -113,10 +113,6 @@ cdef class CVXOPTBackend(GenericBackend):
             1
             sage: p.add_variable(lower_bound=-2.0, integer=True)
             2
-            sage: p.add_variable(continuous=True, integer=True)       # optional - CVXOPT
-            Traceback (most recent call last):
-            ...
-            ValueError: ...
             sage: p.add_variable(name='x',obj=1.0)
             3
             sage: p.col_name(3)
@@ -163,7 +159,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.ncols()
             0
@@ -195,7 +191,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")   # optional - CVXOPT
             sage: p.ncols()                                        # optional - CVXOPT
             0
@@ -220,7 +216,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.is_maximization()
             True
@@ -246,7 +242,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variable()
             0
@@ -274,7 +270,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
@@ -296,7 +292,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.set_verbosity(2)
         """
@@ -327,7 +323,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.ncols()
             0
@@ -370,7 +366,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
@@ -411,7 +407,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
@@ -435,90 +431,27 @@ cdef class CVXOPTBackend(GenericBackend):
 
         .. NOTE::
 
-            This method raises ``MIPSolverException`` exceptions when
+            This method raises ``SDPSolverException`` exceptions when
             the solution can not be computed for any reason (none
             exists, or the LP solver was not able to find it, etc...)
 
         EXAMPLE::
 
-            sage: p = MixedIntegerLinearProgram(solver = "cvxopt", maximization=False)
+            sage: p = SemidefiniteProgram(solver = "cvxopt", maximization=False)
             sage: x=p.new_variable(nonnegative=True)
-            sage: p.set_objective(-4*x[0] - 5*x[1])
-            sage: p.add_constraint(2*x[0] + x[1] <= 3)
-            sage: p.add_constraint(2*x[1] + x[0] <= 3)
+            sage: p.set_objective(x[0] - x[1] + x[2])
+            sage: a1 = matrix([[-7., -11.], [-11., 3.]])
+            sage: a2 = matrix([[7., -18.], [-18., 8.]])
+            sage: a3 = matrix([[-2., -8.], [-8., 1.]])
+            sage: a4 = matrix([[33., -9.], [-9., 26.]])
+            sage: b1 = matrix([[-21., -11., 0.], [-11., 10., 8.], [0.,   8., 5.]])
+            sage: b2 = matrix([[0.,  10.,  16.], [10., -10., -10.], [16., -10., 3.]])
+            sage: b3 = matrix([[-5.,   2., -17.], [2.,  -6.,   8.], [-17.,  8., 6.]])
+            sage: b4 = matrix([[14., 9., 40.], [9., 91., 10.], [40., 10., 15.]])
+            sage: p.add_constraint(a1*x[0] + a2*x[1] + a3*x[2] <= a4)
+            sage: p.add_constraint(b1*x[0] + b2*x[1] + b3*x[2] <= b4)
             sage: round(p.solve(), 2)
-            -9.0
-            sage: p = MixedIntegerLinearProgram(solver = "cvxopt", maximization=False)
-            sage: x=p.new_variable(nonnegative=True)
-            sage: p.set_objective(x[0] + 2*x[1])
-            sage: p.add_constraint(-5*x[0] + x[1]  <=   7)
-            sage: p.add_constraint(-5*x[0] + x[1]  >=   7)
-            sage: p.add_constraint(x[0] + x[1] >= 26  )
-            sage: p.add_constraint( x[0] >= 3)
-            sage: p.add_constraint( x[1] >= 4)
-            sage: round(p.solve(),2)
-            48.83
-            sage: p = MixedIntegerLinearProgram(solver = "cvxopt")
-            sage: x=p.new_variable(nonnegative=True)
-            sage: p.set_objective(x[0] + x[1] + 3*x[2])
-            sage: p.solver_parameter("show_progress",True)
-            sage: p.add_constraint(x[0] + 2*x[1] <= 4)
-            sage: p.add_constraint(5*x[2] - x[1] <= 8)
-            sage: round(p.solve(), 2)
-                     pcost       dcost       gap    pres   dres   k/t
-                 0: -7.3165e+00 -2.3038e+01  6e+00  0e+00  2e+00  1e+00
-                 1: -7.8209e+00 -1.0635e+01  1e+00  1e-16  3e-01  2e-01
-                 2: -8.4714e+00 -1.0546e+01  1e+00  4e-16  2e-01  2e-01
-                 3: -8.7876e+00 -8.8459e+00  3e-02  1e-16  6e-03  4e-03
-                 4: -8.7999e+00 -8.8005e+00  3e-04  2e-16  6e-05  4e-05
-                 5: -8.8000e+00 -8.8000e+00  3e-06  2e-16  6e-07  4e-07
-                 6: -8.8000e+00 -8.8000e+00  3e-08  1e-16  6e-09  4e-09
-                Optimal solution found.
-                8.8
-            sage: #CVXOPT gives different  values for variables compared to the other solvers.
-            sage: c = MixedIntegerLinearProgram(solver = "cvxopt")
-            sage: p = MixedIntegerLinearProgram(solver = "ppl")
-            sage: g = MixedIntegerLinearProgram()
-            sage: xc=c.new_variable(nonnegative=True)
-            sage: xp=p.new_variable(nonnegative=True)
-            sage: xg=g.new_variable(nonnegative=True)
-            sage: c.set_objective(xc[2])
-            sage: p.set_objective(xp[2])
-            sage: g.set_objective(xg[2])
-            sage: #we create a cube for all three solvers
-            sage: c.add_constraint(xc[0] <= 100)
-            sage: c.add_constraint(xc[1] <= 100)
-            sage: c.add_constraint(xc[2] <= 100)
-            sage: p.add_constraint(xp[0] <= 100)
-            sage: p.add_constraint(xp[1] <= 100)
-            sage: p.add_constraint(xp[2] <= 100)
-            sage: g.add_constraint(xg[0] <= 100)
-            sage: g.add_constraint(xg[1] <= 100)
-            sage: g.add_constraint(xg[2] <= 100)
-            sage: round(c.solve(),2)
-            100.0
-            sage: round(c.get_values(xc[0]),2)
-            50.0
-            sage: round(c.get_values(xc[1]),2)
-            50.0
-            sage: round(c.get_values(xc[2]),2)
-            100.0
-            sage: round(p.solve(),2)
-            100.0
-            sage: round(p.get_values(xp[0]),2)
-            0.0
-            sage: round(p.get_values(xp[1]),2)
-            0.0
-            sage: round(p.get_values(xp[2]),2)
-            100.0
-            sage: round(g.solve(),2)
-            100.0
-            sage: round(g.get_values(xg[0]),2)
-            0.0
-            sage: round(g.get_values(xg[1]),2)
-            0.0
-            sage: round(g.get_values(xg[2]),2)
-            100.0
+            -3.16
         """
         from cvxopt import matrix, solvers
         h = []
@@ -582,11 +515,11 @@ cdef class CVXOPTBackend(GenericBackend):
         if self.answer['status'] == 'optimized':
             pass
         elif self.answer['status'] == 'primal infeasible':
-            raise MIPSolverException("CVXOPT: primal infeasible")
+            raise SDPSolverException("CVXOPT: primal infeasible")
         elif self.answer['status'] == 'dual infeasible':
-            raise MIPSolverException("CVXOPT: dual infeasible")
+            raise SDPSolverException("CVXOPT: dual infeasible")
         elif self.answer['status'] == 'unknown':
-            raise MIPSolverException("CVXOPT: Terminated early due to numerical difficulties or because the maximum number of iterations was reached.")
+            raise SDPSolverException("CVXOPT: Terminated early due to numerical difficulties or because the maximum number of iterations was reached.")
         return 0
 
 
@@ -600,7 +533,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "cvxopt")
             sage: p.add_variables(2)
             1
@@ -632,7 +565,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(2)
             1
@@ -656,7 +589,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.ncols()
             0
@@ -674,7 +607,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.nrows()
             0
@@ -693,7 +626,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.is_maximization()
             True
@@ -717,7 +650,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.problem_name("There once was a french fry")
             sage: print p.problem_name()
@@ -745,7 +678,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
@@ -782,7 +715,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
@@ -810,7 +743,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variable()
             0
@@ -832,7 +765,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.ncols()
             0
@@ -855,7 +788,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")  # optional - CVXOPT
             sage: p.ncols()                                       # optional - CVXOPT
             0
@@ -877,7 +810,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.ncols()
             0
@@ -902,7 +835,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_linear_constraints(1, 2, None, names="Empty constraint 1")
             sage: p.row_name(0)
@@ -926,7 +859,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variable(name="I am a variable")
             0
@@ -951,7 +884,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variable()
             0
@@ -980,7 +913,7 @@ cdef class CVXOPTBackend(GenericBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
 
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variable()
@@ -1010,11 +943,11 @@ cdef class CVXOPTBackend(GenericBackend):
         .. NOTE::
 
            The list of available parameters is available at
-           :meth:`~sage.numerical.mip.MixedIntegerLinearProgram.solver_parameter`.
+           :meth:`~sage.numerical.sdp.SemidefiniteProgram.solver_parameter`.
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
+            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.solver_parameter("show_progress")
             False
