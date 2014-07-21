@@ -34,7 +34,7 @@ cdef class GenericSDPBackend:
     cpdef zero(self):
         return self.base_ring()(0)
 
-    cpdef int add_variable(self, lower_bound=None, upper_bound=None, binary=False, continuous=True, integer=False, obj=None, name=None) except -1:
+    cpdef int add_variable(self, lower_bound=None, upper_bound=None, obj=None, name=None) except -1:
         """
         Add a variable.
 
@@ -46,12 +46,6 @@ cdef class GenericSDPBackend:
         - ``lower_bound`` - the lower bound of the variable (default: 0)
 
         - ``upper_bound`` - the upper bound of the variable (default: ``None``)
-
-        - ``binary`` - ``True`` if the variable is binary (default: ``False``).
-
-        - ``continuous`` - ``True`` if the variable is binary (default: ``True``).
-
-        - ``integer`` - ``True`` if the variable is binary (default: ``False``).
 
         - ``obj`` - (optional) coefficient of this variable in the objective function (default: 0.0)
 
@@ -69,14 +63,6 @@ cdef class GenericSDPBackend:
             0
             sage: p.ncols()                                           # optional - Nonexistent_LP_solver
             1
-            sage: p.add_variable(binary=True)                         # optional - Nonexistent_LP_solver
-            1
-            sage: p.add_variable(lower_bound=-2.0, integer=True)      # optional - Nonexistent_LP_solver
-            2
-            sage: p.add_variable(continuous=True, integer=True)       # optional - Nonexistent_LP_solver
-            Traceback (most recent call last):
-            ...
-            ValueError: ...
             sage: p.add_variable(name='x',obj=1.0)                    # optional - Nonexistent_LP_solver
             3
             sage: p.col_name(3)                                       # optional - Nonexistent_LP_solver
@@ -86,7 +72,7 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef int add_variables(self, int n, lower_bound=None, upper_bound=None, binary=False, continuous=True, integer=False, obj=None, names=None) except -1:
+    cpdef int add_variables(self, int n, lower_bound=None, upper_bound=None, obj=None, names=None) except -1:
         """
         Add ``n`` variables.
 
@@ -100,12 +86,6 @@ cdef class GenericSDPBackend:
         - ``lower_bound`` - the lower bound of the variable (default: 0)
 
         - ``upper_bound`` - the upper bound of the variable (default: ``None``)
-
-        - ``binary`` - ``True`` if the variable is binary (default: ``False``).
-
-        - ``continuous`` - ``True`` if the variable is binary (default: ``True``).
-
-        - ``integer`` - ``True`` if the variable is binary (default: ``False``).
 
         - ``obj`` - (optional) coefficient of all variables in the objective function (default: 0.0)
 
@@ -125,34 +105,6 @@ cdef class GenericSDPBackend:
             5
             sage: p.add_variables(2, lower_bound=-2.0, integer=True, names=['a','b']) # optional - Nonexistent_LP_solver
             6
-        """
-        raise NotImplementedError()
-
-    cpdef  set_variable_type(self, int variable, int vtype):
-        """
-        Set the type of a variable
-
-        INPUT:
-
-        - ``variable`` (integer) -- the variable's id
-
-        - ``vtype`` (integer) :
-
-            *  1  Integer
-            *  0  Binary
-            *  -1  Continuous
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")   # optional - Nonexistent_LP_solver
-            sage: p.ncols()                                        # optional - Nonexistent_LP_solver
-            0
-            sage: p.add_variable()                                  # optional - Nonexistent_LP_solver
-            1
-            sage: p.set_variable_type(0,1)                          # optional - Nonexistent_LP_solver
-            sage: p.is_variable_integer(0)                          # optional - Nonexistent_LP_solver
-            True
         """
         raise NotImplementedError()
 
@@ -204,7 +156,7 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef  set_objective(self, list coeff, d = 0.0):
+    cpdef  set_objective(self, list coeff, d=0.0):
         """
         Set the objective function.
 
@@ -227,30 +179,6 @@ cdef class GenericSDPBackend:
 
         Constants in the objective function are respected::
 
-            sage: p = SemidefiniteProgram(solver='Nonexistent_LP_solver') # optional - Nonexistent_LP_solver
-            sage: x,y = p[0], p[1]                              # optional - Nonexistent_LP_solver
-            sage: p.add_constraint(2*x + 3*y, max = 6)          # optional - Nonexistent_LP_solver
-            sage: p.add_constraint(3*x + 2*y, max = 6)          # optional - Nonexistent_LP_solver
-            sage: p.set_objective(x + y + 7)                    # optional - Nonexistent_LP_solver
-            sage: p.set_integer(x); p.set_integer(y)            # optional - Nonexistent_LP_solver
-            sage: p.solve()                                     # optional - Nonexistent_LP_solver
-            9.0
-        """
-        raise NotImplementedError()
-
-    cpdef set_verbosity(self, int level):
-        """
-        Set the log (verbosity) level
-
-        INPUT:
-
-        - ``level`` (integer) -- From 0 (no verbosity) to 3.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.set_verbosity(2)                                # optional - Nonexistent_LP_solver
         """
         raise NotImplementedError()
 
@@ -545,46 +473,6 @@ cdef class GenericSDPBackend:
 
         raise NotImplementedError()
 
-    cpdef write_lp(self, char * name):
-        """
-        Write the problem to a .lp file
-
-        INPUT:
-
-        - ``filename`` (string)
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_variables(2)                               # optional - Nonexistent_LP_solver
-            2
-            sage: p.add_linear_constraint([(0, 1], (1, 2)], None, 3) # optional - Nonexistent_LP_solver
-            sage: p.set_objective([2, 5])                          # optional - Nonexistent_LP_solver
-            sage: p.write_lp(os.path.join(SAGE_TMP, "lp_problem.lp"))            # optional - Nonexistent_LP_solver
-        """
-        raise NotImplementedError()
-
-    cpdef write_mps(self, char * name, int modern):
-        """
-        Write the problem to a .mps file
-
-        INPUT:
-
-        - ``filename`` (string)
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_variables(2)                               # optional - Nonexistent_LP_solver
-            2
-            sage: p.add_linear_constraint([(0, 1), (1, 2)], None, 3) # optional - Nonexistent_LP_solver
-            sage: p.set_objective([2, 5])                          # optional - Nonexistent_LP_solver
-            sage: p.write_lp(os.path.join(SAGE_TMP, "lp_problem.lp"))            # optional - Nonexistent_LP_solver
-        """
-        raise NotImplementedError()
-
     cpdef row(self, int i):
         """
         Return a row
@@ -670,75 +558,6 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef bint is_variable_binary(self, int index):
-        """
-        Test whether the given variable is of binary type.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.ncols()                                       # optional - Nonexistent_LP_solver
-            0
-            sage: p.add_variable()                                 # optional - Nonexistent_LP_solver
-            1
-            sage: p.set_variable_type(0,0)                         # optional - Nonexistent_LP_solver
-            sage: p.is_variable_binary(0)                          # optional - Nonexistent_LP_solver
-            True
-
-        """
-        raise NotImplementedError()
-
-    cpdef bint is_variable_integer(self, int index):
-        """
-        Test whether the given variable is of integer type.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.ncols()                                       # optional - Nonexistent_LP_solver
-            0
-            sage: p.add_variable()                                 # optional - Nonexistent_LP_solver
-            1
-            sage: p.set_variable_type(0,1)                         # optional - Nonexistent_LP_solver
-            sage: p.is_variable_integer(0)                         # optional - Nonexistent_LP_solver
-            True
-        """
-        raise NotImplementedError()
-
-    cpdef bint is_variable_continuous(self, int index):
-        """
-        Test whether the given variable is of continuous/real type.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.ncols()                                       # optional - Nonexistent_LP_solver
-            0
-            sage: p.add_variable()                                 # optional - Nonexistent_LP_solver
-            1
-            sage: p.is_variable_continuous(0)                      # optional - Nonexistent_LP_solver
-            True
-            sage: p.set_variable_type(0,1)                         # optional - Nonexistent_LP_solver
-            sage: p.is_variable_continuous(0)                      # optional - Nonexistent_LP_solver
-            False
-
-        """
-        raise NotImplementedError()
 
     cpdef row_name(self, int index):
         """

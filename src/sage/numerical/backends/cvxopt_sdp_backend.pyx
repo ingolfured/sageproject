@@ -74,7 +74,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             self.set_sense(-1)
 
 
-    cpdef int add_variable(self, lower_bound=0.0, upper_bound=None, binary=False, continuous=True, integer=False, obj=None, name=None) except -1:
+    cpdef int add_variable(self, lower_bound=0.0, upper_bound=None, obj=None, name=None) except -1:
         """
         Add a variable.
 
@@ -109,9 +109,9 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             0
             sage: p.ncols()
             1
-            sage: p.add_variable(binary=True)
+            sage: p.add_variable()
             1
-            sage: p.add_variable(lower_bound=-2.0, integer=True)
+            sage: p.add_variable(lower_bound=-2.0)
             2
             sage: p.add_variable(name='x',obj=1.0)
             3
@@ -130,7 +130,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         return len(self.objective_function) - 1
 
 
-    cpdef int add_variables(self, int n, lower_bound=None, upper_bound=None, binary=False, continuous=True, integer=False, obj=None, names=None) except -1:
+    cpdef int add_variables(self, int n, lower_bound=None, upper_bound=None, obj=None, names=None) except -1:
         """
         Add ``n`` variables.
 
@@ -167,41 +167,13 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             4
             sage: p.ncols()
             5
-            sage: p.add_variables(2, lower_bound=-2.0, integer=True, names=['a','b'])
+            sage: p.add_variables(2, lower_bound=-2.0, names=['a','b'])
             6
         """
         for i in range(n):
             self.add_variable()
         return len(self.objective_function) - 1;
 
-
-    cpdef set_variable_type(self, int variable, int vtype):
-        """
-        Set the type of a variable
-
-        INPUT:
-
-        - ``variable`` (integer) -- the variable's id
-
-        - ``vtype`` (integer) :
-
-            *  1  Integer
-            *  0  Binary
-            *  -1  Continuous
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")   # optional - CVXOPT
-            sage: p.ncols()                                        # optional - CVXOPT
-            0
-            sage: p.add_variable()                                  # optional - CVXOPT
-            1
-            sage: p.set_variable_type(0,1)                          # optional - CVXOPT
-            sage: p.is_variable_integer(0)                          # optional - CVXOPT
-            True
-        """
-        pass
 
     cpdef set_sense(self, int sense):
         """
@@ -257,7 +229,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         else:
             return self.objective_function[variable]
 
-    cpdef set_objective(self, list coeff, d = 0.0):
+    cpdef set_objective(self, list coeff, d=0.0):
         """
         Set the objective function.
 
@@ -281,23 +253,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         for i in range(len(coeff)):
             self.objective_function[i] = coeff[i];
         obj_constant_term = d;
-
-    cpdef set_verbosity(self, int level):
-        """
-        Set the log (verbosity) level
-
-        INPUT:
-
-        - ``level`` (integer) -- From 0 (no verbosity) to 3.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.set_verbosity(2)
-        """
-        pass
-
 
 
     cpdef add_col(self, list indices, list coeffs):
@@ -438,7 +393,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         EXAMPLE::
 
             sage: p = SemidefiniteProgram(solver = "cvxopt", maximization=False)
-            sage: x=p.new_variable(nonnegative=True)
+            sage: x = p.new_variable()
             sage: p.set_objective(x[0] - x[1] + x[2])
             sage: a1 = matrix([[-7., -11.], [-11., 3.]])
             sage: a2 = matrix([[7., -18.], [-18., 8.]])

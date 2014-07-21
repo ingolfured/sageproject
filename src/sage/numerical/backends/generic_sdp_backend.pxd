@@ -6,13 +6,11 @@
 ##############################################################################
 
 cdef class GenericSDPBackend:
-    cpdef int add_variable(self, lower_bound=*, upper_bound=*, binary=*, continuous=*, integer=*, obj=*, name=*) except -1
-    cpdef int add_variables(self, int, lower_bound=*, upper_bound=*, binary=*, continuous=*, integer=*, obj=*, names=*) except -1
-    cpdef set_variable_type(self, int variable, int vtype)
+    cpdef int add_variable(self, lower_bound=*, upper_bound=*, obj=*, name=*) except -1
+    cpdef int add_variables(self, int, lower_bound=*, upper_bound=*,  obj=*, names=*) except -1
     cpdef set_sense(self, int sense)
     cpdef objective_coefficient(self, int variable, coeff=*)
     cpdef set_objective(self, list coeff, d=*)
-    cpdef set_verbosity(self, int level)
     cpdef add_linear_constraint(self, constraints, lower_bound, upper_bound, name=*)
     cpdef remove_constraint(self, int)
     cpdef remove_constraints(self, constraints)
@@ -22,14 +20,9 @@ cdef class GenericSDPBackend:
     cpdef get_objective_value(self)
     cpdef get_variable_value(self, int variable)
     cpdef bint is_maximization(self)
-    cpdef write_lp(self, char * name)
-    cpdef write_mps(self, char * name, int modern)
     cpdef row(self, int i)
     cpdef int ncols(self)
     cpdef int nrows(self)
-    cpdef bint is_variable_binary(self, int)
-    cpdef bint is_variable_integer(self, int)
-    cpdef bint is_variable_continuous(self, int)
     cpdef problem_name(self, char * name = *)
     cpdef row_bounds(self, int index)
     cpdef col_bounds(self, int index)

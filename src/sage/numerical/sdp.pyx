@@ -77,6 +77,19 @@ cdef class SemidefiniteProgram(SageObject):
         if check_redundant:
             self._constraints = list()
 
+    def __call__(self, x):
+        parent = self.linear_functions_parent()
+        return parent(x)
+
+    linear_function = __call__
+
+    def linear_functions_parent(self):
+        if self._linear_functions_parent is None:
+            base_ring = self._backend.base_ring()
+            from sage.numerical.linear_functions import LinearFunctionsParent
+            self._linear_functions_parent = LinearFunctionsParent(base_ring)
+        return self._linear_functions_parent
+
     def get_values(self, *lists):
         val = []
         for l in lists:
@@ -111,6 +124,8 @@ cdef class SemidefiniteProgram(SageObject):
     def set_objective(self,obj):
         cdef list values = []
 
+        #TODO change this thing!!
+
         # If the objective is None, or a constant, we want to remember
         # that the objective function has been defined ( the user did not
         # forget it ). In some LP problems, you just want a feasible solution
@@ -128,7 +143,7 @@ cdef class SemidefiniteProgram(SageObject):
         for i in range(self._backend.ncols()):
             values.append(f.get(i,self._backend.zero()))
 
-        self._backend.set_objective(values, d)
+        self._backend.set_objective(values)
 
     def add_constraint(self, linear_function, max=None, min=None, name=None):
         if linear_function is 0:
@@ -218,6 +233,10 @@ cdef class SemidefiniteProgram(SageObject):
     def get_backend(self):
         return self._backend
 
+    def new_variable(self, name=""):
+        v=SDPVariable(self, name=name)
+        return v
+
 class SDPSolverException(RuntimeError):
 
     def __init__(self, value):
@@ -228,19 +247,12 @@ class SDPSolverException(RuntimeError):
 
 cdef class SDPVariable(SageObject):
 
-    def __cinit__(self, p, vtype, dim=1, name=""):
-        self._dim = dim
+    def __cinit__(self, p, name=""):
         self._dict = {}
         self._p = p
-        self._vtype = vtype
 
         self._hasname = (len(name) >0)
 
-        if dim > 1:
-            from sage.misc.superseded import deprecation
-            deprecation(15489, "The 'dim' argument will soon disappear. "+
-                        "Fortunately variable[1,2] is easier to use than "+
-                        "variable[1][2]")
 
         # create a temporary char *
         cdef char *name_c = name
@@ -259,30 +271,18 @@ cdef class SDPVariable(SageObject):
 
         if i in self._dict:
             return self._dict[i]
-        elif self._dim == 1:
+        else:
             zero = self._p._backend.zero()
-            j = self._p._backend.add_variable(zero , None, False, True, False, zero,
+            j = self._p._backend.add_variable(zero , None,  zero,
                                               (str(self._name) + "[" + str(i) + "]")
                                                if self._hasname else None)
 
             v = self._p.linear_function({j : 1})
             self._p._variables[v] = j
-            self._p._backend.set_variable_type(j,self._vtype)
             self._dict[i] = v
 
             return v
 
-        else:
-            self._dict[i] = SDPVariable(
-                self._p,
-                self._vtype,
-                dim=self._dim-1,
-                name = ("" if not self._hasname
-                        else (str(self._name) + "[" + str(i) + "]")))
-
-            return self._dict[i]
-
-    def _repr_(self):
         return "SDPVariable of dimension " + str(self._dim) + "."
 
     def keys(self):
