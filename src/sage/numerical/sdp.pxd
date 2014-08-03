@@ -14,8 +14,8 @@ cdef class SemidefiniteProgram(SageObject):
     cdef list _sdpvariables
     cdef SDPVariable _default_sdpvariable
     cdef dict _variables
-    cdef object _linear_functions_parent
-    cdef object _linear_constraints_parent
+    cdef object _linear_sdp_functions_parent
+    cdef object _linear_sdp_constraints_parent
     cdef int _check_redundant
     cdef list _constraints
     cpdef sum(self, L)

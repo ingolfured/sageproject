@@ -15,25 +15,25 @@ also implements the :class:`SDPSolverException` exception, as well as the
     :widths: 30, 70
     :delim: |
 
-    :meth:`~SemidefiniteProgram.add_constraint`            | Adds a constraint to the ``SemidefiniteProgram``
-    :meth:`~SemidefiniteProgram.base_ring`                 | Return the base ring
-    :meth:`~SemidefiniteProgram.constraints`               | Returns a list of constraints, as 3-tuples
-    :meth:`~SemidefiniteProgram.get_backend`               | Returns the backend instance used
-    :meth:`~SemidefiniteProgram.get_max`                   | Returns the maximum value of a variable
-    :meth:`~SemidefiniteProgram.get_min`                   | Returns the minimum value of a variable
-    :meth:`~SemidefiniteProgram.get_values`                | Return values found by the previous call to ``solve()``
-    :meth:`~SemidefiniteProgram.linear_constraints_parent` | Return the parent for all linear constraints
-    :meth:`~SemidefiniteProgram.linear_function`           | Construct a new linear function
-    :meth:`~SemidefiniteProgram.linear_functions_parent`   | Return the parent for all linear functions
-    :meth:`~SemidefiniteProgram.new_variable`              | Returns an instance of ``SDPVariable`` associated
-    :meth:`~SemidefiniteProgram.remove_constraint`         | Removes a constraint from self
-    :meth:`~SemidefiniteProgram.remove_constraints`        | Remove several constraints
-    :meth:`~SemidefiniteProgram.set_max`                   | Sets the maximum value of a variable
-    :meth:`~SemidefiniteProgram.set_min`                   | Sets the minimum value of a variable
-    :meth:`~SemidefiniteProgram.set_objective`             | Sets the objective of the ``SemidefiniteProgram``
-    :meth:`~SemidefiniteProgram.set_problem_name`          | Sets the name of the ``SemidefiniteProgram``
-    :meth:`~SemidefiniteProgram.show`                      | Displays the ``SemidefiniteProgram`` in a human-readable
-    :meth:`~SemidefiniteProgram.solve`                     | Solves the ``SemidefiniteProgram``
+    :meth:`~SemidefiniteProgram.add_constraint`                | Adds a constraint to the ``SemidefiniteProgram``
+    :meth:`~SemidefiniteProgram.base_ring`                     | Return the base ring
+    :meth:`~SemidefiniteProgram.constraints`                   | Returns a list of constraints, as 3-tuples
+    :meth:`~SemidefiniteProgram.get_backend`                   | Returns the backend instance used
+    :meth:`~SemidefiniteProgram.get_max`                       | Returns the maximum value of a variable
+    :meth:`~SemidefiniteProgram.get_min`                       | Returns the minimum value of a variable
+    :meth:`~SemidefiniteProgram.get_values`                    | Return values found by the previous call to ``solve()``
+    :meth:`~SemidefiniteProgram.linear_sdp_constraints_parent` | Return the parent for all linear constraints
+    :meth:`~SemidefiniteProgram.linear_sdp_function`           | Construct a new linear function
+    :meth:`~SemidefiniteProgram.linear_sdp_functions_parent`   | Return the parent for all linear functions
+    :meth:`~SemidefiniteProgram.new_variable`                  | Returns an instance of ``SDPVariable`` associated
+    :meth:`~SemidefiniteProgram.remove_constraint`             | Removes a constraint from self
+    :meth:`~SemidefiniteProgram.remove_constraints`            | Remove several constraints
+    :meth:`~SemidefiniteProgram.set_max`                       | Sets the maximum value of a variable
+    :meth:`~SemidefiniteProgram.set_min`                       | Sets the minimum value of a variable
+    :meth:`~SemidefiniteProgram.set_objective`                 | Sets the objective of the ``SemidefiniteProgram``
+    :meth:`~SemidefiniteProgram.set_problem_name`              | Sets the name of the ``SemidefiniteProgram``
+    :meth:`~SemidefiniteProgram.show`                          | Displays the ``SemidefiniteProgram`` in a human-readable
+    :meth:`~SemidefiniteProgram.solve`                         | Solves the ``SemidefiniteProgram``
 
 Classes and methods
 -------------------
@@ -54,7 +54,7 @@ include "sage/ext/cdefs.pxi"
 
 from sage.structure.sage_object cimport SageObject
 from sage.misc.cachefunc import cached_method
-from sage.numerical.linear_functions import is_LinearFunction, is_LinearConstraint
+from sage.numerical.linear_sdp_functions import is_LinearSDPFunction, is_LinearSDPConstraint
 from sage.misc.superseded import deprecated_function_alias, deprecation
 from sage.misc.superseded import deprecated_function_alias
 
@@ -78,17 +78,52 @@ cdef class SemidefiniteProgram(SageObject):
             self._constraints = list()
 
     def __call__(self, x):
-        parent = self.linear_functions_parent()
+        parent = self.linear_sdp_functions_parent()
         return parent(x)
 
-    linear_function = __call__
+    linear_sdp_function = __call__
 
-    def linear_functions_parent(self):
-        if self._linear_functions_parent is None:
+    def linear_sdp_functions_parent(self):
+        if self._linear_sdp_functions_parent is None:
             base_ring = self._backend.base_ring()
-            from sage.numerical.linear_functions import LinearFunctionsParent
-            self._linear_functions_parent = LinearFunctionsParent(base_ring)
-        return self._linear_functions_parent
+            from sage.numerical.linear_sdp_functions import LinearSDPFunctionsParent
+            self._linear_sdp_functions_parent = LinearSDPFunctionsParent(base_ring)
+        return self._linear_sdp_functions_parent
+
+    def base_ring(self):
+        """
+        Return the base ring.
+
+        OUTPUT:
+
+        A ring. The coefficients that the chosen solver supports.
+
+        EXAMPLES::
+
+            sage: p = MixedIntegerLinearProgram(solver='cvxopt')
+            sage: p.base_ring()
+            Rational Field
+        """
+        return self._backend.base_ring()
+
+    def linear_sdp_constraints_parent(self):
+        """
+        Return the parent for all linear constraints
+
+        See :mod:`~sage.numerical.linear_functions` for more
+        details.
+
+        EXAMPLES::
+
+             sage: p = MixedIntegerLinearProgram()
+             sage: p.linear_sdp_constraints_parent()
+             Linear constraints over Real Double Field
+        """
+        if self._linear_sdp_constraints_parent is None:
+            from sage.numerical.linear_sdp_functions import LinearSDPConstraintsParent
+            LF = self.linear_sdp_functions_parent()
+            self._linear_sdp_constraints_parent = LinearSDPConstraintsParent(LF)
+        return self._linear_sdp_constraints_parent
 
     def get_values(self, *lists):
         val = []
@@ -124,7 +159,7 @@ cdef class SemidefiniteProgram(SageObject):
     def set_objective(self,obj):
         cdef list values = []
 
-        #TODO change this thing!!
+        #TODO change this comment!!
 
         # If the objective is None, or a constant, we want to remember
         # that the objective function has been defined ( the user did not
@@ -145,8 +180,8 @@ cdef class SemidefiniteProgram(SageObject):
 
         self._backend.set_objective(values)
 
-    def add_constraint(self, linear_function, max=None, min=None, name=None):
-        if linear_function is 0:
+    def add_constraint(self, linear_sdp_function, max=None, min=None, name=None):
+        if linear_sdp_function is 0:
             return
 
         # Raising an exception when min/max are not as expected
@@ -155,8 +190,8 @@ cdef class SemidefiniteProgram(SageObject):
             or (max is not None and max not in RR)):
             raise ValueError("min and max arguments are required to be numerical")
 
-        if is_LinearFunction(linear_function):
-            f = linear_function.dict()
+        if is_LinearSDPFunction(linear_sdp_function):
+            f = linear_sdp_function.dict()
             constant_coefficient = f.get(-1,0)
 
             # We do not want to ignore the constant coefficient
@@ -189,16 +224,16 @@ cdef class SemidefiniteProgram(SageObject):
             if min is None and max is None:
                 raise ValueError("Both max and min are set to None ? Weird!")
 
-            self._backend.add_linear_constraint(C, min, max, name)
+            self._backend.add_linear_sdp_constraint(C, min, max, name)
 
-        elif is_LinearConstraint(linear_function):
-            constraint = linear_function
+        elif is_LinearSDPConstraint(linear_sdp_function):
+            constraint = linear_sdp_function
             for lhs, rhs in constraint.equations():
                 self.add_constraint(lhs-rhs, min=0, max=0, name=name)
             for lhs, rhs in constraint.inequalities():
                 self.add_constraint(lhs-rhs, max=0, name=name)
         else:
-            raise ValueError('argument must be a linear function or constraint, got '+str(linear_function))
+            raise ValueError('argument must be a linear function or constraint, got '+str(linear_sdp_function))
 
     def solve(self, log=None, objective_only=False):
         if log is not None: self._backend.set_verbosity(log)
@@ -228,7 +263,7 @@ cdef class SemidefiniteProgram(SageObject):
         for v in L:
             for id,coeff  in v.iteritems():
                 d[id] = coeff + d.get(id,0)
-        return self.linear_functions_parent()(d)
+        return self.linear_sdp_functions_parent()(d)
 
     def get_backend(self):
         return self._backend
@@ -277,7 +312,12 @@ cdef class SDPVariable(SageObject):
                                               (str(self._name) + "[" + str(i) + "]")
                                                if self._hasname else None)
 
-            v = self._p.linear_function({j : 1})
+            #dim = self._p.linear_sdp_function._dim
+            #if dim == 1:
+            #    v = self._p.linear_sdp_function({j : matrix.identity(dim) })
+            #else:
+            #    v = self._p.linear_sdp_function({j : 1 })
+            v = self._p.linear_sdp_function({j : 1 })
             self._p._variables[v] = j
             self._dict[i] = v
 
