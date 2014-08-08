@@ -8,8 +8,9 @@ either equalities or less-or-equal. For example::
 
     sage: p = SemidefiniteProgram()
     sage: x = p.new_variable()
-    sage: f = 1 + x[1] + 2*x[2];  f     #  a linear function
-    1 + x_0 + 2*x_1
+    sage: f = matrix(RDF,[[1,0],[0,1]]) + matrix(RDF,[[1,0],[0,1]])* x[1] + 2*matrix(RDF,[[1,2],[2,-11]])*x[2];  f
+    [1,0]   [1,0]       [2,4]
+    [0,1] + [0,1]*x_0 + [4,-22]*x_1
     sage: type(f)
     <type 'sage.numerical.linear_sdp_functions.LinearSDPFunction'>
 

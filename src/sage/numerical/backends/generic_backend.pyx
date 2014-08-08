@@ -895,7 +895,7 @@ def default_mip_solver(solver = None):
           <http://cvxopt.org/>`_ web site.
 
         ``solver`` should then be equal to one of ``"GLPK"``,
-        ``"Coin"``, ``"CPLEX"``,  ``"CVXOPT"``, ``"Gurobi"`` or ``"PPL"`` .
+        ``"Coin"``, ``"CPLEX"``, ``"Gurobi"`` or ``"CVXOPT"``.
 
         - If ``solver=None`` (default), the current default solver's name is
           returned.
@@ -916,7 +916,7 @@ def default_mip_solver(solver = None):
         sage: default_mip_solver("Yeahhhhhhhhhhh")
         Traceback (most recent call last):
         ...
-        ValueError: 'solver' should be set to 'GLPK', 'Coin', 'CPLEX', 'CVXOPT', 'Gurobi', 'PPL' or None.
+        ValueError: 'solver' should be set to 'GLPK', 'Coin', 'CPLEX', 'Gurobi', 'CVXOPT' or None.
         sage: default_mip_solver(former_solver)
     """
     global default_solver
