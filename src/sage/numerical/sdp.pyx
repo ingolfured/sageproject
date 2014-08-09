@@ -19,8 +19,6 @@ also implements the :class:`SDPSolverException` exception, as well as the
     :meth:`~SemidefiniteProgram.base_ring`                     | Return the base ring
     :meth:`~SemidefiniteProgram.constraints`                   | Returns a list of constraints, as 3-tuples
     :meth:`~SemidefiniteProgram.get_backend`                   | Returns the backend instance used
-    :meth:`~SemidefiniteProgram.get_max`                       | Returns the maximum value of a variable
-    :meth:`~SemidefiniteProgram.get_min`                       | Returns the minimum value of a variable
     :meth:`~SemidefiniteProgram.get_values`                    | Return values found by the previous call to ``solve()``
     :meth:`~SemidefiniteProgram.linear_sdp_constraints_parent` | Return the parent for all linear constraints
     :meth:`~SemidefiniteProgram.linear_sdp_function`           | Construct a new linear function
@@ -28,8 +26,6 @@ also implements the :class:`SDPSolverException` exception, as well as the
     :meth:`~SemidefiniteProgram.new_variable`                  | Returns an instance of ``SDPVariable`` associated
     :meth:`~SemidefiniteProgram.remove_constraint`             | Removes a constraint from self
     :meth:`~SemidefiniteProgram.remove_constraints`            | Remove several constraints
-    :meth:`~SemidefiniteProgram.set_max`                       | Sets the maximum value of a variable
-    :meth:`~SemidefiniteProgram.set_min`                       | Sets the minimum value of a variable
     :meth:`~SemidefiniteProgram.set_objective`                 | Sets the objective of the ``SemidefiniteProgram``
     :meth:`~SemidefiniteProgram.set_problem_name`              | Sets the name of the ``SemidefiniteProgram``
     :meth:`~SemidefiniteProgram.show`                          | Displays the ``SemidefiniteProgram`` in a human-readable
@@ -180,23 +176,13 @@ cdef class SemidefiniteProgram(SageObject):
 
         self._backend.set_objective(values)
 
-    def add_constraint(self, linear_sdp_function, max=None, min=None, name=None):
-        if linear_sdp_function is 0:
+    def add_constraint(self, linear_sdp_function,  name=None):
+        if linear_function is 0:
             return
 
-        # Raising an exception when min/max are not as expected
-        from sage.rings.all import RR
-        if ((min is not None and min not in RR)
-            or (max is not None and max not in RR)):
-            raise ValueError("min and max arguments are required to be numerical")
-
-        if is_LinearSDPFunction(linear_sdp_function):
-            f = linear_sdp_function.dict()
+        if is_LinearFunction(linear_function):
+            f = linear_function.dict()
             constant_coefficient = f.get(-1,0)
-
-            # We do not want to ignore the constant coefficient
-            max = (max - constant_coefficient) if max is not None else None
-            min = (min - constant_coefficient) if min is not None else None
 
             indices = []
             values = []
@@ -224,33 +210,20 @@ cdef class SemidefiniteProgram(SageObject):
             if min is None and max is None:
                 raise ValueError("Both max and min are set to None ? Weird!")
 
-            self._backend.add_linear_sdp_constraint(C, min, max, name)
+            self._backend.add_linear_constraint(C, name)
 
-        elif is_LinearSDPConstraint(linear_sdp_function):
-            constraint = linear_sdp_function
+        elif is_LinearConstraint(linear_function):
+            constraint = linear_function
             for lhs, rhs in constraint.equations():
                 self.add_constraint(lhs-rhs, min=0, max=0, name=name)
             for lhs, rhs in constraint.inequalities():
                 self.add_constraint(lhs-rhs, max=0, name=name)
         else:
-            raise ValueError('argument must be a linear function or constraint, got '+str(linear_sdp_function))
+            raise ValueError('argument must be a linear function or constraint, got '+str(linear_function))
 
-    def solve(self, log=None, objective_only=False):
-        if log is not None: self._backend.set_verbosity(log)
+    def solve(self, objective_only=False):
         self._backend.solve()
         return self._backend.get_objective_value()
-
-    def set_min(self, v, min):
-        self._backend.variable_lower_bound(self._variables[v], min)
-
-    def set_max(self, v, max):
-        self._backend.variable_upper_bound(self._variables[v], max)
-
-    def get_min(self, v):
-        return self._backend.variable_lower_bound(self._variables[v])
-
-    def get_max(self, v):
-        return self._backend.variable_upper_bound(self._variables[v])
 
     def solver_parameter(self, name, value = None):
         if value is None:
@@ -312,11 +285,6 @@ cdef class SDPVariable(SageObject):
                                               (str(self._name) + "[" + str(i) + "]")
                                                if self._hasname else None)
 
-            #dim = self._p.linear_sdp_function._dim
-            #if dim == 1:
-            #    v = self._p.linear_sdp_function({j : matrix.identity(dim) })
-            #else:
-            #    v = self._p.linear_sdp_function({j : 1 })
             v = self._p.linear_sdp_function({j : 1 })
             self._p._variables[v] = j
             self._dict[i] = v
