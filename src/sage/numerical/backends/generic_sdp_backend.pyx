@@ -34,7 +34,7 @@ cdef class GenericSDPBackend:
     cpdef zero(self):
         return self.base_ring()(0)
 
-    cpdef int add_variable(self, lower_bound=None, upper_bound=None, obj=None, name=None) except -1:
+    cpdef int add_variable(self, obj=None, name=None) except -1:
         """
         Add a variable.
 
@@ -42,10 +42,6 @@ cdef class GenericSDPBackend:
         the variable is both positive and real.
 
         INPUT:
-
-        - ``lower_bound`` - the lower bound of the variable (default: 0)
-
-        - ``upper_bound`` - the upper bound of the variable (default: ``None``)
 
         - ``obj`` - (optional) coefficient of this variable in the objective function (default: 0.0)
 
@@ -72,7 +68,7 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef int add_variables(self, int n, lower_bound=None, upper_bound=None, obj=None, names=None) except -1:
+    cpdef int add_variables(self, int n, obj=None, names=None) except -1:
         """
         Add ``n`` variables.
 
@@ -82,10 +78,6 @@ cdef class GenericSDPBackend:
         INPUT:
 
         - ``n`` - the number of new variables (must be > 0)
-
-        - ``lower_bound`` - the lower bound of the variable (default: 0)
-
-        - ``upper_bound`` - the upper bound of the variable (default: ``None``)
 
         - ``obj`` - (optional) coefficient of all variables in the objective function (default: 0.0)
 
@@ -223,7 +215,7 @@ cdef class GenericSDPBackend:
                 self.remove_constraint(c)
                 last = c
 
-    cpdef add_linear_constraint(self, coefficients, lower_bound, upper_bound, name=None):
+    cpdef add_linear_constraint(self, coefficients, name=None):
         """
         Add a linear constraint.
 
@@ -292,7 +284,7 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef add_linear_constraints(self, int number, lower_bound, upper_bound, names=None):
+    cpdef add_linear_constraints(self, int number, names=None):
         """
         Add constraints.
 
@@ -600,57 +592,6 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef variable_upper_bound(self, int index, value = None):
-        """
-        Return or define the upper bound on a variable
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        - ``value`` -- real value, or ``None`` to mean that the
-          variable has not upper bound. When set to ``None``
-          (default), the method returns the current value.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_variable()                                 # optional - Nonexistent_LP_solver
-            1
-            sage: p.col_bounds(0)                              # optional - Nonexistent_LP_solver
-            (0.0, None)
-            sage: p.variable_upper_bound(0, 5)                 # optional - Nonexistent_LP_solver
-            sage: p.col_bounds(0)                              # optional - Nonexistent_LP_solver
-            (0.0, 5.0)
-        """
-        raise NotImplementedError()
-
-    cpdef variable_lower_bound(self, int index, value = None):
-        """
-        Return or define the lower bound on a variable
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        - ``value`` -- real value, or ``None`` to mean that the
-          variable has not lower bound. When set to ``None``
-          (default), the method returns the current value.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_variable()                                 # optional - Nonexistent_LP_solver
-            1
-            sage: p.col_bounds(0)                              # optional - Nonexistent_LP_solver
-            (0.0, None)
-            sage: p.variable_lower_bound(0, 5)                 # optional - Nonexistent_LP_solver
-            sage: p.col_bounds(0)                              # optional - Nonexistent_LP_solver
-            (5.0, None)
-        """
-        raise NotImplementedError()
 
     cpdef solver_parameter(self, name, value = None):
         """

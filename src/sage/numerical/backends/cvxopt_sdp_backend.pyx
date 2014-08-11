@@ -303,7 +303,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         self.objective_function.append(0)
         self.col_name_var.append(None)
 
-    cpdef add_linear_constraint(self, coefficients, lower_bound, upper_bound, name=None):
+    cpdef add_linear_constraint(self, coefficients, name=None):
         """
         Add a linear constraint.
 
@@ -342,11 +342,9 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         for c in coefficients:
             self.G_matrix[c[0]][-1] = c[1]
 
-        self.row_lower_bound.append(lower_bound)
-        self.row_upper_bound.append(upper_bound)
         self.row_name_var.append(name)
 
-    cpdef add_linear_constraints(self, int number, lower_bound, upper_bound, names=None):
+    cpdef add_linear_constraints(self, int number, names=None):
         """
         Add constraints.
 
@@ -374,10 +372,10 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         """
         if names is not None:
             for i in range(number):
-                self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ), lower_bound, upper_bound, names)
+                self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ),names)
         else:
             for i in range(number):
-                self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ), lower_bound, upper_bound)
+                self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ) )
 
 
     cpdef int solve(self) except -1:
