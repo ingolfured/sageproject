@@ -17,18 +17,15 @@ AUTHORS:
 
 
 from sage.numerical.sdp import SDPSolverException
+from sage.matrix.all import Matrix
 from cvxopt import solvers
 
 cdef class CVXOPTSDPBackend(GenericSDPBackend):
     cdef list objective_function #c_matrix
     cdef list G_matrix
+    cdef list h_matrix
     cdef str prob_name
     cdef bint is_maximize
-
-    cdef list row_lower_bound
-    cdef list row_upper_bound
-    cdef list col_lower_bound
-    cdef list col_upper_bound
 
     cdef list row_name_var
     cdef list col_name_var
@@ -51,12 +48,8 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         self.G_matrix = []
         self.prob_name = None
         self.obj_constant_term = 0
+        self.matrices_dim = {}
         self.is_maximize = 1
-
-        self.row_lower_bound = []
-        self.row_upper_bound = []
-        self.col_lower_bound = []
-        self.col_upper_bound = []
 
         self.row_name_var = []
         self.col_name_var = []
@@ -74,24 +67,14 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             self.set_sense(-1)
 
 
-    cpdef int add_variable(self, lower_bound=0.0, upper_bound=None, obj=None, name=None) except -1:
+    cpdef int add_variable(self, obj=0.0,  name=None) except -1:
         """
         Add a variable.
 
-        This amounts to adding a new column to the matrix. By default,
+        This amounts to adding a new column of matrices to the matrix. By default,
         the variable is both positive and real.
 
         INPUT:
-
-        - ``lower_bound`` - the lower bound of the variable (default: 0)
-
-        - ``upper_bound`` - the upper bound of the variable (default: ``None``)
-
-        - ``binary`` - ``True`` if the variable is binary (default: ``False``).
-
-        - ``continuous`` - ``True`` if the variable is binary (default: ``True``).
-
-        - ``integer`` - ``True`` if the variable is binary (default: ``False``).
 
         - ``obj`` - (optional) coefficient of this variable in the objective function (default: 0.0)
 
@@ -111,26 +94,21 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             1
             sage: p.add_variable()
             1
-            sage: p.add_variable(lower_bound=-2.0)
-            2
             sage: p.add_variable(name='x',obj=1.0)
-            3
-            sage: p.col_name(3)
+            2
+            sage: p.col_name(2)
             'x'
-            sage: p.objective_coefficient(3)
+            sage: p.objective_coefficient(2)
             1.00000000000000
         """
-        if obj == None:
-            obj = 0.0
-        self.G_matrix.append([0 for i in range(self.nrows())])
-        self.col_lower_bound.append(lower_bound)
-        self.col_upper_bound.append(upper_bound)
-        self.objective_function.append(obj)
+        for dim in self.matrices_dim:
+            self.G_matrix.append(Matrix(dim))
         self.col_name_var.append(name)
+        self.objective_function.append(obj)
         return len(self.objective_function) - 1
 
 
-    cpdef int add_variables(self, int n, lower_bound=None, upper_bound=None, obj=None, names=None) except -1:
+    cpdef int add_variables(self, int n, names=None) except -1:
         """
         Add ``n`` variables.
 
@@ -140,18 +118,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         INPUT:
 
         - ``n`` - the number of new variables (must be > 0)
-
-        - ``lower_bound`` - the lower bound of the variable (default: 0)
-
-        - ``upper_bound`` - the upper bound of the variable (default: ``None``)
-
-        - ``binary`` - ``True`` if the variable is binary (default: ``False``).
-
-        - ``continuous`` - ``True`` if the variable is binary (default: ``True``).
-
-        - ``integer`` - ``True`` if the variable is binary (default: ``False``).
-
-        - ``obj`` - (optional) coefficient of all variables in the objective function (default: 0.0)
 
         - ``names`` - optional list of names (default: ``None``)
 
@@ -167,7 +133,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             4
             sage: p.ncols()
             5
-            sage: p.add_variables(2, lower_bound=-2.0, names=['a','b'])
+            sage: p.add_variables(2, names=['a','b'])
             6
         """
         for i in range(n):
@@ -265,7 +231,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
           indices of the constraints in which the variable's
           coefficient is nonzero
 
-        - ``coeffs`` (list of real values) -- associates a coefficient
+        - ``coeffs`` (list of matrices) -- associates a coefficient
           to the variable in each of the constraints in which it
           appears. Namely, the ith entry of ``coeffs`` corresponds to
           the coefficient of the variable in the constraint
@@ -284,7 +250,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             0
             sage: p.nrows()
             0
-            sage: p.add_linear_constraints(5, 0, None)
+            sage: p.add_linear_constraints(5, None)
             sage: p.add_col(range(5), range(5))
             sage: p.nrows()
             5
@@ -298,8 +264,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
         self.G_matrix.append(column)
 
-        self.col_lower_bound.append(None)
-        self.col_upper_bound.append(None)
         self.objective_function.append(0)
         self.col_name_var.append(None)
 
@@ -311,11 +275,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
         - ``coefficients`` an iterable with ``(c,v)`` pairs where ``c``
           is a variable index (integer) and ``v`` is a value (real
-          value).
-
-        - ``lower_bound`` - a lower bound, either a real value or ``None``
-
-        - ``upper_bound`` - an upper bound, either a real value or ``None``
+          value). If c is -1 it represents the constant coefficient.
 
         - ``name`` - an optional name for this row (default: ``None``)
 
@@ -323,25 +283,25 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
             sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variables(5)
-            4
-            sage: p.add_linear_constraint(zip(range(5), range(5)), 2.0, 2.0)
+            sage: p.add_variables(2)
+            1
+            sage: p.add_linear_constraint(  [(0, matrix([[33., -9.], [-9., 26.]])) , (1,  matrix([[-7., -11.] ,[ -11., 3.]]) )])
             sage: p.row(0)
             ([1, 2, 3, 4], [1, 2, 3, 4])
-            sage: p.row_bounds(0)
-            (2.00000000000000, 2.00000000000000)
-            sage: p.add_linear_constraint( zip(range(5), range(5)), 1.0, 1.0, name='foo')
+            sage: p.add_linear_constraint( zip(range(5), range(5)), name='foo')
             sage: p.row_name(-1)
             'foo'
         """
-        for c in coefficients:
-            while c[0] > len(self.G_matrix)-1:
-                 self.add_variable()
-        for i in range(len(self.G_matrix)):
-            self.G_matrix[i].append(0.0)
-        for c in coefficients:
-            self.G_matrix[c[0]][-1] = c[1]
-
+        from sage.matrix.matrix import is_Matrix
+        Gm = []
+        for i,m in coefficients:
+            if not is_Matrix(m):
+                raise Exception("The coefficients must be matrices")
+            if i == -1:
+                self.h_matrix += [m]
+            else:
+                Gm.append(m.list())
+        self.G_matrix += [Matrix(Gm)]
         self.row_name_var.append(name)
 
     cpdef add_linear_constraints(self, int number, names=None):
@@ -351,10 +311,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         INPUT:
 
         - ``number`` (integer) -- the number of constraints to add.
-
-        - ``lower_bound`` - a lower bound, either a real value or ``None``
-
-        - ``upper_bound`` - an upper bound, either a real value or ``None``
 
         - ``names`` - an optional list of names (default: ``None``)
 
@@ -376,6 +332,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         else:
             for i in range(number):
                 self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ) )
+
 
 
     cpdef int solve(self) except -1:
@@ -409,38 +366,10 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         from cvxopt import matrix, solvers
         h = []
 
-        #for the equation bounds
-        for eq_index in range(self.nrows()):
-            h.append(self.row_upper_bound[eq_index])
-            #upper bound is already in G
-            if self.row_lower_bound[eq_index] != None:
-                h.append(-1 * self.row_lower_bound[eq_index])
-                for cindex in range(len(self.G_matrix)):
-                    if cindex == eq_index:
-                        self.G_matrix[cindex].append(-1) # after multiplying the eq by -1
-                    else:
-                        self.G_matrix[cindex].append(0)
-
-
-
-        #for the upper bounds (if there are any)
-        for i in range(len(self.col_upper_bound)):
-            if self.col_upper_bound[i] != None:
-                h.append(self.col_upper_bound[i])
-                for cindex in range(len(self.G_matrix)):
-                    if cindex == i:
-                        self.G_matrix[cindex].append(1)
-                    else:
-                        self.G_matrix[cindex].append(0)
-            if self.col_lower_bound[i] != None:
-                h.append(self.col_lower_bound[i])
-                for cindex in range(len(self.G_matrix)):
-                    if cindex == i:
-                        self.G_matrix[cindex].append(-1) # after multiplying the eq by -1
-                    else:
-                        self.G_matrix[cindex].append(0)
 
         G = []
+
+
         for col in self.G_matrix:
             tempcol = []
             for i in range(len(col)):
@@ -570,7 +499,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: p.nrows()
             2
         """
-        return len(self.row_upper_bound)
+        return len(self.matrices_dim)
 
 
     cpdef bint is_maximization(self):
@@ -652,131 +581,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         return (idx, coeff)
 
 
-    cpdef row_bounds(self, int index):
-        """
-        Return the bounds of a specific constraint.
 
-        INPUT:
-
-        - ``index`` (integer) -- the constraint's id.
-
-        OUTPUT:
-
-        A pair ``(lower_bound, upper_bound)``. Each of them can be set
-        to ``None`` if the constraint is not bounded in the
-        corresponding direction, and is a real value otherwise.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variables(5)
-            4
-            sage: p.add_linear_constraint(zip(range(5), range(5)), 2, 2)
-            sage: p.row(0)
-            ([1, 2, 3, 4], [1, 2, 3, 4])
-            sage: p.row_bounds(0)
-            (2, 2)
-        """
-        return (self.row_lower_bound[index], self.row_upper_bound[index])
-
-    cpdef col_bounds(self, int index):
-        """
-        Return the bounds of a specific variable.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id.
-
-        OUTPUT:
-
-        A pair ``(lower_bound, upper_bound)``. Each of them can be set
-        to ``None`` if the variable is not bounded in the
-        corresponding direction, and is a real value otherwise.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variable()
-            0
-            sage: p.col_bounds(0)
-            (0.0, None)
-            sage: p.variable_upper_bound(0, 5)
-            sage: p.col_bounds(0)
-            (0.0, 5)
-        """
-        return (self.col_lower_bound[index], self.col_upper_bound[index])
-
-    cpdef bint is_variable_binary(self, int index):
-        """
-        Test whether the given variable is of binary type.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.ncols()
-            0
-            sage: p.add_variable()
-            0
-            sage: p.set_variable_type(0,0)                         # optional - CVXOPT
-            sage: p.is_variable_binary(0)                          # optional - CVXOPT
-            True
-
-        """
-        return False
-
-    cpdef bint is_variable_integer(self, int index):
-        """
-        Test whether the given variable is of integer type.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")  # optional - CVXOPT
-            sage: p.ncols()                                       # optional - CVXOPT
-            0
-            sage: p.add_variable()                                 # optional - CVXOPT
-            1
-            sage: p.set_variable_type(0,1)                         # optional - CVXOPT
-            sage: p.is_variable_integer(0)                         # optional - CVXOPT
-            True
-        """
-        return False
-
-    cpdef bint is_variable_continuous(self, int index):
-        """
-        Test whether the given variable is of continuous/real type.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.ncols()
-            0
-            sage: p.add_variable()
-            0
-            sage: p.is_variable_continuous(0)                      # optional - CVXOPT
-            True
-            sage: p.set_variable_type(0,1)                         # optional - CVXOPT
-            sage: p.is_variable_continuous(0)                      # optional - CVXOPT
-            False
-
-        """
-        return True
 
     cpdef row_name(self, int index):
         """
@@ -823,64 +628,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             return self.col_name_var[index]
         return "x_" + repr(index)
 
-    cpdef variable_upper_bound(self, int index, value = None):
-        """
-        Return or define the upper bound on a variable
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        - ``value`` -- real value, or ``None`` to mean that the
-          variable has not upper bound. When set to ``None``
-          (default), the method returns the current value.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variable()
-            0
-            sage: p.col_bounds(0)
-            (0.0, None)
-            sage: p.variable_upper_bound(0, 5)
-            sage: p.col_bounds(0)
-            (0.0, 5)
-        """
-        if value is not False:
-            self.col_upper_bound[index] = value
-        else:
-            return self.col_upper_bound[index]
-
-    cpdef variable_lower_bound(self, int index, value = None):
-        """
-        Return or define the lower bound on a variable
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id
-
-        - ``value`` -- real value, or ``None`` to mean that the
-          variable has not lower bound. When set to ``None``
-          (default), the method returns the current value.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variable()
-            0
-            sage: p.col_bounds(0)
-            (0.0, None)
-            sage: p.variable_lower_bound(0, 5)
-            sage: p.col_bounds(0)
-            (5, None)
-        """
-        if value is not False:
-            self.col_lower_bound[index] = value
-        else:
-            return self.col_lower_bound[index]
 
     cpdef solver_parameter(self, name, value = None):
         """

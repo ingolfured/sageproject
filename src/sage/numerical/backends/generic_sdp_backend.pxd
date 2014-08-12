@@ -7,13 +7,11 @@
 
 cdef class GenericSDPBackend:
     cpdef int add_variable(self, obj=*, name=*) except -1
-    cpdef int add_variables(self, int, obj=*, names=*) except -1
+    cpdef int add_variables(self, int, names=*) except -1
     cpdef set_sense(self, int sense)
     cpdef objective_coefficient(self, int variable, coeff=*)
     cpdef set_objective(self, list coeff, d=*)
     cpdef add_linear_constraint(self, constraints, name=*)
-    cpdef remove_constraint(self, int)
-    cpdef remove_constraints(self, constraints)
     cpdef add_col(self, list indices, list coeffs)
     cpdef add_linear_constraints(self, int number, names=*)
     cpdef int solve(self) except -1
@@ -24,8 +22,6 @@ cdef class GenericSDPBackend:
     cpdef int ncols(self)
     cpdef int nrows(self)
     cpdef problem_name(self, char * name = *)
-    cpdef row_bounds(self, int index)
-    cpdef col_bounds(self, int index)
     cpdef row_name(self, int index)
     cpdef col_name(self, int index)
     cpdef solver_parameter(self, name, value=*)
@@ -33,5 +29,6 @@ cdef class GenericSDPBackend:
     cpdef base_ring(self)
 
     cpdef obj_constant_term
+    cdef dict matrices_dim
 
-cpdef GenericSDPBackend get_solver(constraint_generation = ?, solver = ?)
+cpdef GenericSDPBackend get_solver(solver = ?)

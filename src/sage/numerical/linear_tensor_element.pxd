@@ -11,4 +11,3 @@ cdef class LinearTensor(ModuleElement):
     cdef _richcmp(left, right, int op)
     cdef int _cmp_c_impl(left, Element right) except -2
 
-    

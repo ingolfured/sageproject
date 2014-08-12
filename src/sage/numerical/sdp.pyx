@@ -52,7 +52,7 @@ A mixed integer linear program can give you an answer:
 
 The following example shows all these steps::
 
-    sage: p = SemidefiniteProgram(maximization=False, solver = "GLPK")
+    sage: p = SemidefiniteProgram(maximization=False, solver = "cvxopt")
     sage: w = p.new_variable(integer=True, nonnegative=True)
     sage: p.add_constraint(w[0] + w[1] + w[2] - 14*w[3] == 0)
     sage: p.add_constraint(w[1] + 2*w[2] - 8*w[3] == 0)
@@ -86,7 +86,7 @@ The following example shows all these steps::
 
 Different backends compute with different base fields, for example::
 
-    sage: p = SemidefiniteProgram(solver='GLPK')
+    sage: p = SemidefiniteProgram(solver='cvxopt')
     sage: p.base_ring()
     Real Double Field
     sage: x = p.new_variable(real=True, nonnegative=True)
@@ -201,6 +201,8 @@ from sage.structure.element cimport Element
 from sage.misc.cachefunc import cached_method
 from sage.numerical.linear_functions import is_LinearFunction, is_LinearConstraint
 from sage.misc.superseded import deprecated_function_alias, deprecation
+from sage.matrix.all import Matrix
+from sage.matrix.matrix import is_Matrix
 
 
 cdef class SemidefiniteProgram(SageObject):
@@ -268,7 +270,6 @@ cdef class SemidefiniteProgram(SageObject):
     """
 
     def __init__(self, solver=None, maximization=True,
-                 constraint_generation=False, check_redundant=False,
                  names=tuple()):
         r"""
         Constructor for the ``SemidefiniteProgram`` class.
@@ -277,24 +278,8 @@ cdef class SemidefiniteProgram(SageObject):
 
         - ``solver`` -- the following solvers should be available through this class:
 
-          - GLPK (``solver="GLPK"``). See the `GLPK
-            <http://www.gnu.org/software/glpk/>`_ web site.
-
-          - COIN Branch and Cut (``solver="Coin"``). See the `COIN-OR
-            <http://www.coin-or.org>`_ web site.
-
-          - CPLEX (``solver="CPLEX"``). See the `CPLEX
-            <http://www.ilog.com/products/cplex/>`_ web site.  An interface to
-            CPLEX is not yet implemented.
-
-          - Gurobi (``solver="Gurobi"``). See the `Gurobi
-            <http://www.gurobi.com/>`_ web site.
-
           - CVXOPT (``solver="CVXOPT"``). See the `CVXOPT <http://www.cvxopt.org/>`_
               web site.
-
-          - PPL (``solver="PPL"``). See the `PPL
-            <http://bugseng.com/products/ppl>`_ web site.
 
           -If ``solver=None`` (default), the default solver is used (see
            ``default_sdp_solver`` method.
@@ -307,21 +292,6 @@ cdef class SemidefiniteProgram(SageObject):
             defined as a minimization.
 
         - ``constraint_generation`` -- Only used when ``solver=None``.
-
-          - When set to ``True``, after solving the
-            ``SemidefiniteProgram``, it is possible to add a constraint,
-            and then solve it again. The effect is that solvers that do not
-            support this feature will not be used.
-
-          - Defaults to ``False``.
-
-        - ``check_redundant`` -- whether to check that constraints added to the
-          program are redundant with constraints already in the program.
-          Only obvious redundancies are checked: to be considered redundant,
-          either a constraint is equal to another constraint in the program,
-          or it is a constant multiple of the other. To make this search
-          effective and efficient, constraints are normalized; thus, the
-          constraint `-x_1 < 0` will be stored as `x_1 > 0`.
 
         - ``names`` -- list/tuple/iterable of string. Default names of
           the SDP variables. Used to enable the ``sdp.<x> =
@@ -376,18 +346,13 @@ cdef class SemidefiniteProgram(SageObject):
         """
         self._first_variable_names = list(names)
         from sage.numerical.backends.generic_sdp_backend import get_solver
-        self._backend = get_solver(solver=solver,
-                                   constraint_generation=constraint_generation)
+        self._backend = get_solver(solver=solver)
         if not maximization:
             self._backend.set_sense(-1)
 
         # Associates an index to the variables
         self._variables = {}
 
-        # Check for redundant constraints
-        self._check_redundant = check_redundant
-        if check_redundant:
-            self._constraints = list()
 
     def linear_functions_parent(self):
         """
@@ -482,7 +447,7 @@ cdef class SemidefiniteProgram(SageObject):
             1
         """
         cdef SemidefiniteProgram p = \
-            SemidefiniteProgram(solver="GLPK")
+            SemidefiniteProgram(solver="cvxopt")
         from copy import copy
         try:
             p._variables = copy(self._variables)
@@ -495,7 +460,6 @@ cdef class SemidefiniteProgram(SageObject):
             pass
 
         try:
-            p._check_redundant = self._check_redundant
             p._constraints = copy(self._constraints)
         except AttributeError:
             pass
@@ -538,7 +502,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         EXAMPLES::
 
-            sage: p = SemidefiniteProgram(solver='GLPK')
+            sage: p = SemidefiniteProgram(solver='cvxopt')
             sage: p.base_ring()
             Real Double Field
             sage: p = SemidefiniteProgram(solver='ppl')
@@ -816,7 +780,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         Running the examples from above, reordering applied::
 
-            sage: p = SemidefiniteProgram(solver = "GLPK")
+            sage: p = SemidefiniteProgram(solver = "cvxopt")
             sage: p.add_constraint(p[0] - p[2], min = 1, max = 4)
             sage: p.add_constraint(p[0] - 2*p[1], min = 1)
             sage: sorted(map(reorder_constraint,p.constraints()))
@@ -994,7 +958,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         When constraints and variables have names ::
 
-            sage: p = SemidefiniteProgram(solver="GLPK")
+            sage: p = SemidefiniteProgram(solver="cvxopt")
             sage: x = p.new_variable(name="Hey")
             sage: p.set_objective(x[1] + x[2])
             sage: p.add_constraint(-3*x[1] + 2*x[2], max=2, name="Constraint_1")
@@ -1009,7 +973,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         Without any names ::
 
-            sage: p = SemidefiniteProgram(solver="GLPK")
+            sage: p = SemidefiniteProgram(solver="cvxopt")
             sage: x = p.new_variable(nonnegative=True)
             sage: p.set_objective(x[1] + x[2])
             sage: p.add_constraint(-3*x[1] + 2*x[2], max=2)
@@ -1022,20 +986,6 @@ cdef class SemidefiniteProgram(SageObject):
               x_0 is a continuous variable (min=0.0, max=+oo)
               x_1 is a continuous variable (min=0.0, max=+oo)
 
-        With `\QQ` coefficients::
-
-            sage: p = SemidefiniteProgram(solver='ppl')
-            sage: x = p.new_variable(nonnegative=True)
-            sage: p.set_objective(x[1] + 1/2*x[2])
-            sage: p.add_constraint(-3/5*x[1] + 2/7*x[2], max=2/5)
-            sage: p.show()
-            Maximization:
-              x_0 + 1/2 x_1
-            Constraints:
-              constraint_0: -3/5 x_0 + 2/7 x_1 <= 2/5
-            Variables:
-              x_0 is a continuous variable (min=0, max=+oo)
-              x_1 is a continuous variable (min=0, max=+oo)
         """
         cdef int i, j
         cdef GenericSDPBackend b = self._backend
@@ -1204,6 +1154,7 @@ cdef class SemidefiniteProgram(SageObject):
         else:
             return val
 
+
     def set_objective(self,obj):
         r"""
         Sets the objective of the ``SemidefiniteProgram``.
@@ -1269,14 +1220,7 @@ cdef class SemidefiniteProgram(SageObject):
             - A linear constraint of the form ``A <= B``, ``A >= B``,
               ``A <= B <= C``, ``A >= B >= C`` or ``A == B``. In this
               case, arguments ``min`` and ``max`` will be ignored.
-        - ``max`` -- An upper bound on the constraint (set to ``None``
-          by default). This must be a numerical value.
-        - ``min`` -- A lower bound on the constraint.  This must be a
-          numerical value.
         - ``name`` -- A name for the constraint.
-
-        To set a lower and/or upper bound on the variables use the methods
-        ``set_min`` and/or ``set_max`` of ``SemidefiniteProgram``.
 
         EXAMPLE:
 
@@ -1301,19 +1245,10 @@ cdef class SemidefiniteProgram(SageObject):
             sage: round(p.solve(),6)
             6.666667
 
-        There are two different ways to add the constraint
-        ``x[5] + 3*x[7] <= x[6] + 3`` to a ``SemidefiniteProgram``.
-
-        The first one consists in giving ``add_constraint`` this
+        To add a constrain we give ``add_constraint`` this
         very expression::
 
             sage: p.add_constraint( x[5] + 3*x[7] <= x[6] + 3 )
-
-        The second (slightly more efficient) one is to use the
-        arguments ``min`` or ``max``, which can only be numerical
-        values::
-
-            sage: p.add_constraint( x[5] + 3*x[7] - x[6], max = 3 )
 
         One can also define double-bounds or equality using symbols
         ``<=``, ``>=`` and ``==``::
@@ -1335,7 +1270,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         Complex constraints::
 
-            sage: p = SemidefiniteProgram(solver = "GLPK")
+            sage: p = SemidefiniteProgram(solver = "cvxopt")
             sage: b = p.new_variable(nonnegative=True)
             sage: p.add_constraint( b[8] - b[15] <= 3*b[8] + 9)
             sage: p.show()
@@ -1352,207 +1287,24 @@ cdef class SemidefiniteProgram(SageObject):
             sage: p=SemidefiniteProgram()
             sage: p.add_constraint(sum([]),min=2)
 
-        Min/Max are numerical ::
 
-            sage: v = p.new_variable(nonnegative=True)
-            sage: p.add_constraint(v[3] + v[5], min = v[6])
-            Traceback (most recent call last):
-            ...
-            ValueError: min and max arguments are required to be numerical
-            sage: p.add_constraint(v[3] + v[5], max = v[6])
-            Traceback (most recent call last):
-            ...
-            ValueError: min and max arguments are required to be numerical
-
-        Do not add redundant elements (notice only one copy of each constraint is added)::
-
-            sage: lp = SemidefiniteProgram(solver = "GLPK", check_redundant=True)
-            sage: for each in xrange(10): lp.add_constraint(lp[0]-lp[1],min=1)
-            sage: lp.show()
-            Maximization:
-            <BLANKLINE>
-            Constraints:
-              1.0 <= x_0 - x_1
-            Variables:
-              x_0 is a continuous variable (min=0.0, max=+oo)
-              x_1 is a continuous variable (min=0.0, max=+oo)
-
-        We check for constant multiples of constraints as well::
-
-            sage: for each in xrange(10): lp.add_constraint(2*lp[0]-2*lp[1],min=2)
-            sage: lp.show()
-            Maximization:
-            <BLANKLINE>
-            Constraints:
-              1.0 <= x_0 - x_1
-            Variables:
-              x_0 is a continuous variable (min=0.0, max=+oo)
-              x_1 is a continuous variable (min=0.0, max=+oo)
-
-        But if the constant multiple is negative, we should add it anyway (once)::
-
-              sage: for each in xrange(10): lp.add_constraint(-2*lp[0]+2*lp[1],min=-2)
-              sage: lp.show()
-              Maximization:
-              <BLANKLINE>
-              Constraints:
-                1.0 <= x_0 - x_1
-                x_0 - x_1 <= 1.0
-              Variables:
-                x_0 is a continuous variable (min=0.0, max=+oo)
-                x_1 is a continuous variable (min=0.0, max=+oo)
-
-        TESTS:
-
-        Catch ``True`` / ``False`` as INPUT (:trac:`13646`)::
-
-            sage: p = SemidefiniteProgram()
-            sage: x = p.new_variable(nonnegative=True)
-            sage: p.add_constraint(True)
-            Traceback (most recent call last):
-            ...
-            ValueError: argument must be a linear function or constraint, got True
         """
         if linear_function is 0:
             return
 
-        # Raising an exception when min/max are not as expected
+        if is_LinearTensorConstraint(linear_function):
+            c = linear_function
+            if c.is_equation():
+                self.add_constraint(c.lhs-c.rhs, name=name)
+                self.add_constraint(-c.lhs+c.rhs, name=name)
+            else
+                self.add_constraint(c.lhs-c.rhs, name=name)
 
-        if is_LinearFunction(linear_function):
-            f = linear_function.dict()
-            constant_coefficient = f.get(-1,0)
+        elif is_LinearTensor(linear_function):
+            self._backend.add_linear_constraint(linear_function._f.dict.items(), name)
 
-            # We do not want to ignore the constant coefficient
-
-            indices = []
-            values = []
-
-            if self._check_redundant:
-              b = self._backend
-              from __builtin__ import min as min_function
-              i = min_function([v for (v,coeff) in f.iteritems() if coeff != 0])
-              c = f[i]
-              C = [(v,coeff/c) for (v,coeff) in f.iteritems() if v != -1]
-              if (tuple(C)) in self._constraints:
-                return None
-              else:
-                self._constraints.append((tuple(C)))
-            else:
-              C = [(v,coeff) for (v,coeff) in f.iteritems() if v != -1]
-
-            self._backend.add_linear_constraint(C, name)
-
-        elif is_LinearConstraint(linear_function):
-            constraint = linear_function
-            for lhs, rhs in constraint.equations():
-                self.add_constraint(lhs-rhs,  name=name)
-            for lhs, rhs in constraint.inequalities():
-                self.add_constraint(lhs-rhs,  name=name)
         else:
             raise ValueError('argument must be a linear function or constraint, got '+str(linear_function))
-
-    def remove_constraint(self, int i):
-        r"""
-        Removes a constraint from self.
-
-        INPUT:
-
-        - ``i`` -- Index of the constraint to remove.
-
-        EXAMPLE::
-
-            sage: p = SemidefiniteProgram()
-            sage: x, y = p[0], p[1]
-            sage: p.add_constraint(x + y, max = 10)
-            sage: p.add_constraint(x - y, max = 0)
-            sage: p.add_constraint(x, max = 4)
-            sage: p.show()
-            Maximization:
-            <BLANKLINE>
-            Constraints:
-              x_0 + x_1 <= 10.0
-              x_0 - x_1 <= 0.0
-              x_0 <= 4.0
-            ...
-            sage: p.remove_constraint(1)
-            sage: p.show()
-            Maximization:
-            <BLANKLINE>
-            Constraints:
-              x_0 + x_1 <= 10.0
-              x_0 <= 4.0
-            ...
-            sage: p.number_of_constraints()
-            2
-        """
-        if self._check_redundant: self._constraints.pop(i)
-        self._backend.remove_constraint(i)
-
-    def remove_constraints(self, constraints):
-        r"""
-        Remove several constraints.
-
-        INPUT:
-
-        - ``constraints`` -- an iterable containing the indices of the rows to remove.
-
-        EXAMPLE::
-
-            sage: p = SemidefiniteProgram()
-            sage: x, y = p[0], p[1]
-            sage: p.add_constraint(x + y, max = 10)
-            sage: p.add_constraint(x - y, max = 0)
-            sage: p.add_constraint(x, max = 4)
-            sage: p.show()
-            Maximization:
-            <BLANKLINE>
-            Constraints:
-              x_0 + x_1 <= 10.0
-              x_0 - x_1 <= 0.0
-              x_0 <= 4.0
-            ...
-            sage: p.remove_constraints([0, 1])
-            sage: p.show()
-            Maximization:
-            <BLANKLINE>
-            Constraints:
-              x_0 <= 4.0
-            ...
-            sage: p.number_of_constraints()
-            1
-
-        When checking for redundant constraints, make sure you remove only
-        the constraints that were actually added. Problems could arise if
-        you have a function that builds lps non-interactively, but it fails
-        to check whether adding a constraint actually increases the number of
-        constraints. The function might later try to remove constraints that
-        are not actually there::
-
-            sage: p = SemidefiniteProgram(check_redundant=True)
-            sage: x, y = p[0], p[1]
-            sage: p.add_constraint(x + y, max = 10)
-            sage: for each in xrange(10): p.add_constraint(x - y, max = 10)
-            sage: p.add_constraint(x, max = 4)
-            sage: p.number_of_constraints()
-            3
-            sage: p.remove_constraints(range(1,9))
-            Traceback (most recent call last):
-            ...
-            IndexError: pop index out of range
-            sage: p.remove_constraint(1)
-            sage: p.number_of_constraints()
-            2
-
-        We should now be able to add the old constraint back in::
-
-            sage: for each in xrange(10): p.add_constraint(x - y, max = 10)
-            sage: p.number_of_constraints()
-            3
-        """
-        if self._check_redundant:
-          for i in sorted(constraints,reverse=True):
-            self._constraints.pop(i)
-        self._backend.remove_constraints(constraints)
 
 
     def solve(self, log=None, objective_only=False):
@@ -1644,14 +1396,14 @@ cdef class SemidefiniteProgram(SageObject):
         means their meaning heavily depends on the solver used.
 
         (If you do not know which solver you are using, then you use
-        use GLPK).
+        use cvxopt).
 
         Aliases:
 
         Very common parameters have aliases making them
         solver-independent. For example, the following::
 
-            sage: p = SemidefiniteProgram(solver = "GLPK")
+            sage: p = SemidefiniteProgram(solver = "cvxopt")
             sage: p.solver_parameter("timelimit", 60)
 
         Sets the solver to stop its computations after 60 seconds, and
@@ -1663,25 +1415,11 @@ cdef class SemidefiniteProgram(SageObject):
         Solver-specific parameters:
 
             - GLPK : We have implemented very close to comprehensive coverage of
-              the GLPK solver parameters for the simplex and integer
+              the cvxopt solver parameters for the simplex and integer
               optimization methods. For details, see the documentation of
-              :meth:`GLPKBackend.solver_parameter
-              <sage.numerical.backends.glpk_backend.GLPKBackend.solver_parameter>`.
+              :meth:`cvxoptBackend.solver_parameter
+              <sage.numerical.backends.glpk_backend.cvxoptBackend.solver_parameter>`.
 
-            - CPLEX's parameters are identified by a string. Their
-              list is available `on ILOG's website
-              <http://publib.boulder.ibm.com/infocenter/odmeinfo/v3r4/index.jsp?topic=/ilog.odms.ide.odme.help/Content/Optimization/Documentation/ODME/_pubskel/ODME_pubskels/startall_ODME34_Eclipse1590.html>`_.
-
-              The command ::
-
-                  sage: p = SemidefiniteProgram(solver = "CPLEX") # optional - CPLEX
-                  sage: p.solver_parameter("CPX_PARAM_TILIM", 60)       # optional - CPLEX
-
-              works as intended.
-
-            - Gurobi's parameters should all be available through this
-              method. Their list is available on Gurobi's website
-              `<http://www.gurobi.com/documentation/5.5/reference-manual/node798>`_.
 
         INPUT:
 
@@ -1692,7 +1430,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         EXAMPLE::
 
-            sage: p = SemidefiniteProgram(solver = "GLPK")
+            sage: p = SemidefiniteProgram(solver = "cvxopt")
             sage: p.solver_parameter("timelimit", 60)
             sage: p.solver_parameter("timelimit")
             60.0
@@ -1749,7 +1487,7 @@ cdef class SemidefiniteProgram(SageObject):
 
         This example uses the simplex algorthm and prints information::
 
-            sage: p = SemidefiniteProgram(solver="GLPK")
+            sage: p = SemidefiniteProgram(solver="cvxopt")
             sage: x, y = p[0], p[1]
             sage: p.add_constraint(2*x + 3*y, max = 6)
             sage: p.add_constraint(3*x + 2*y, max = 6)
@@ -1758,7 +1496,7 @@ cdef class SemidefiniteProgram(SageObject):
             sage: b.solver_parameter("simplex_or_intopt", "simplex_only")
             sage: b.solver_parameter("verbosity_simplex", "GLP_MSG_ALL")
             sage: p.solve()  # tol 0.00001
-            GLPK Simplex Optimizer, v4.44
+            cvxopt Simplex Optimizer, v4.44
             2 rows, 2 columns, 4 non-zeros
             *     0: obj =   7.000000000e+00  infeas =  0.000e+00 (0)
             *     2: obj =   9.400000000e+00  infeas =  0.000e+00 (0)
@@ -1789,7 +1527,7 @@ class SDPSolverException(RuntimeError):
 
         No continuous solution::
 
-            sage: p=SemidefiniteProgram(solver="GLPK")
+            sage: p=SemidefiniteProgram(solver="cvxopt")
             sage: v=p.new_variable(nonnegative=True)
             sage: p.add_constraint(v[0],max=5.5)
             sage: p.add_constraint(v[0],min=7.6)
@@ -1798,19 +1536,19 @@ class SDPSolverException(RuntimeError):
 
         No integer solution::
 
-            sage: p=SemidefiniteProgram(solver="GLPK")
+            sage: p=SemidefiniteProgram(solver="cvxopt")
             sage: v=p.new_variable(nonnegative=True)
             sage: p.add_constraint(v[0],max=5.6)
             sage: p.add_constraint(v[0],min=5.2)
             sage: p.set_objective(v[0])
             sage: p.set_integer(v)
 
-        Tests of GLPK's Exceptions::
+        Tests of cvxopt's Exceptions::
 
             sage: p.solve()
             Traceback (most recent call last):
             ...
-            SDPSolverException: 'GLPK : Solution is undefined'
+            SDPSolverException: 'cvxopt : Solution is undefined'
         """
         self.value = value
 
@@ -1942,7 +1680,7 @@ cdef class SDPVariable(Element):
             sage: v
             SDPVariable of dimension 3.
         """
-        return "SDPVariable of dimension " + str(self._dim) + "."
+        return "SDPVariable"
 
     def keys(self):
         r"""

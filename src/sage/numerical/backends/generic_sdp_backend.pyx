@@ -34,7 +34,7 @@ cdef class GenericSDPBackend:
     cpdef zero(self):
         return self.base_ring()(0)
 
-    cpdef int add_variable(self, obj=None, name=None) except -1:
+    cpdef int add_variable(self, obj=0.0, name=None) except -1:
         """
         Add a variable.
 
@@ -68,7 +68,7 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef int add_variables(self, int n, obj=None, names=None) except -1:
+    cpdef int add_variables(self, int n, names=None) except -1:
         """
         Add ``n`` variables.
 
@@ -174,46 +174,6 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef remove_constraint(self, int i):
-        r"""
-        Remove a constraint.
-
-        INPUT::
-
-        - ``i`` -- index of the constraint to remove.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_constraint(p[0] + p[1], max = 10)           # optional - Nonexistent_LP_solver
-            sage: p.remove_constraint(0)                            # optional - Nonexistent_LP_solver
-        """
-        raise NotImplementedError()
-
-    cpdef remove_constraints(self, constraints):
-        r"""
-        Remove several constraints.
-
-        INPUT:
-
-        - ``constraints`` -- an iterable containing the indices of the rows to remove.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_constraint(p[0] + p[1], max = 10)           # optional - Nonexistent_LP_solver
-            sage: p.remove_constraints([0])                         # optional - Nonexistent_LP_solver
-        """
-        if type(constraints) == int: self.remove_constraint(constraints)
-
-        cdef int last = self.nrows() + 1
-
-        for c in sorted(constraints, reverse=True):
-            if c != last:
-                self.remove_constraint(c)
-                last = c
 
     cpdef add_linear_constraint(self, coefficients, name=None):
         """
@@ -494,61 +454,6 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef row_bounds(self, int index):
-        """
-        Return the bounds of a specific constraint.
-
-        INPUT:
-
-        - ``index`` (integer) -- the constraint's id.
-
-        OUTPUT:
-
-        A pair ``(lower_bound, upper_bound)``. Each of them can be set
-        to ``None`` if the constraint is not bounded in the
-        corresponding direction, and is a real value otherwise.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_variables(5)                               # optional - Nonexistent_LP_solver
-            5
-            sage: p.add_linear_constraint(range(5), range(5), 2, 2) # optional - Nonexistent_LP_solver
-            sage: p.row(0)                                     # optional - Nonexistent_LP_solver
-            ([4, 3, 2, 1], [4.0, 3.0, 2.0, 1.0])
-            sage: p.row_bounds(0)                              # optional - Nonexistent_LP_solver
-            (2.0, 2.0)
-        """
-        raise NotImplementedError()
-
-    cpdef col_bounds(self, int index):
-        """
-        Return the bounds of a specific variable.
-
-        INPUT:
-
-        - ``index`` (integer) -- the variable's id.
-
-        OUTPUT:
-
-        A pair ``(lower_bound, upper_bound)``. Each of them can be set
-        to ``None`` if the variable is not bounded in the
-        corresponding direction, and is a real value otherwise.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.add_variable()                                 # optional - Nonexistent_LP_solver
-            1
-            sage: p.col_bounds(0)                              # optional - Nonexistent_LP_solver
-            (0.0, None)
-            sage: p.variable_upper_bound(0, 5)                 # optional - Nonexistent_LP_solver
-            sage: p.col_bounds(0)                              # optional - Nonexistent_LP_solver
-            (0.0, 5.0)
-        """
-        raise NotImplementedError()
 
 
     cpdef row_name(self, int index):
@@ -687,7 +592,7 @@ def default_sdp_solver(solver = None):
     else:
         raise ValueError("'solver' should be set to 'CVXOPT' or None.")
 
-cpdef GenericSDPBackend get_solver(constraint_generation = False, solver = None):
+cpdef GenericSDPBackend get_solver(solver = None):
     """
     Return a solver according to the given preferences
 
@@ -700,15 +605,6 @@ cpdef GenericSDPBackend get_solver(constraint_generation = False, solver = None)
 
         ``solver`` should then be equal to one of ``"CVXOPT"`` or ``None``.
           If ``solver=None`` (default), the default solver is used (see ``default_sdp_solver`` method.
-
-    - ``constraint_generation`` -- Only used when ``solver=None``.
-
-      - When set to ``True``, after solving the ``SemidefiniteProgram``,
-        it is possible to add a constraint, and then solve it again.
-        The effect is that solvers that do not support this feature will not be
-        used.
-
-      - Defaults to ``False``.
 
     .. SEEALSO::
 

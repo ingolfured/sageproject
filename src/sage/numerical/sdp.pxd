@@ -18,7 +18,6 @@ cdef class SemidefiniteProgram(SageObject):
     cdef object _linear_constraints_parent
     cpdef int number_of_constraints(self)
     cpdef int number_of_variables(self)
-    cdef int _check_redundant
     cdef list _constraints
     cpdef sum(self, L)
 
