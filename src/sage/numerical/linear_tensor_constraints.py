@@ -1,7 +1,7 @@
 """
-Constraints on Linear Functions Tensored with a Free Module.
+Constraints on Linear Functions Tensored with a Free Module
 
-Here is an example of a linear function tensored with a vector space::
+Here is an example of a vector-valued linear function::
 
     sage: mip.<x> = MixedIntegerLinearProgram('ppl')   # base ring is QQ
     sage: x[0] * vector([3,4]) + 1     # vector linear function
@@ -20,13 +20,18 @@ become symbolic inequalities::
     [0 0 0]    [x_0 0         x_1]
 """
 
+#*****************************************************************************
+#       Copyright (C) 2014 Volker Braun <vbraun.name@gmail.com>
+#
+#  Distributed under the terms of the GNU General Public License (GPL)
+#  as published by the Free Software Foundation; either version 2 of
+#  the License, or (at your option) any later version.
+#                  http://www.gnu.org/licenses/
+#*****************************************************************************
+
 from sage.structure.parent import Parent
-from sage.structure.element import ModuleElement, Element
+from sage.structure.element import Element
 from sage.misc.cachefunc import cached_function
-from sage.matrix.matrix_space import is_MatrixSpace
-from sage.modules.free_module import is_FreeModule
-from sage.numerical.linear_functions import is_LinearFunction, LinearFunctionsParent_class
-from sage.numerical.linear_tensor import is_LinearTensor, LinearTensorParent_class
 
 
 #*****************************************************************************
@@ -77,8 +82,8 @@ def LinearTensorConstraintsParent(linear_functions_parent):
     INPUT:
 
     - ``linear_functions_parent`` -- a
-      :class:`LinearFunctionsParent_class`. The type of linear
-      functions that the constraints are made out of.
+      :class:`~sage.numerical.linear_functions.LinearFunctionsParent_class`. The
+      type of linear functions that the constraints are made out of.
 
     OUTPUT:
 
@@ -113,7 +118,7 @@ class LinearTensorConstraint(Element):
 
         In the code, we use "linear tensor" as abbreviation for the
         tensor product (over the common base ring) of a :mod:`linear
-        function<sage.numerical.linear_function>` and a free module
+        function <sage.numerical.linear_functions>` and a free module
         like a vector/matrix space.
 
     .. warning::
@@ -198,9 +203,39 @@ class LinearTensorConstraint(Element):
         return not self._equality
 
     def lhs(self):
+        """
+        Return the left side of the (in)equality.
+
+        OUTPUT:
+
+        Instance of
+        :class:`sage.numerical.linear_tensor_element.LinearTensor`. A
+        linear function valued in a free module.
+
+        EXAMPLES::
+
+            sage: mip.<x> = MixedIntegerLinearProgram()
+            sage: (x[0] * vector([1,2]) == 0).lhs()
+            (1.0, 2.0)*x_0            
+        """
         return self._lhs
 
     def rhs(self):
+        """
+        Return the right side of the (in)equality.
+
+        OUTPUT:
+
+        Instance of
+        :class:`sage.numerical.linear_tensor_element.LinearTensor`. A
+        linear function valued in a free module.
+
+        EXAMPLES::
+
+            sage: mip.<x> = MixedIntegerLinearProgram()
+            sage: (x[0] * vector([1,2]) == 0).rhs()
+            (0.0, 0.0)
+        """
         return self._rhs
 
     def _ascii_art_(self):
@@ -247,8 +282,7 @@ class LinearTensorConstraint(Element):
             [0   x_2 0  ] == [0 0 0]
             [0   0   x_2]    [0 0 0]
         """
-        M = self.parent().linear_tensors().free_module()
-        if is_MatrixSpace(M):
+        if self.parent().linear_tensors().is_matrix_space():
             return str(self._ascii_art_())
         comparator = (' == ' if self.is_equation() else ' <= ')
         return str(self.lhs()) + comparator + str(self.rhs())
@@ -320,8 +354,11 @@ class LinearTensorConstraintsParent_class(Parent):
         """
         Return the parent for the linear functions
 
-        EXAMPLES::
+        OUTPUT:
 
+        Instance of :class:`sage.numerical.linear_tensor.LinearTensorParent_class`.
+
+        EXAMPLES::
 
             sage: mip.<x> = MixedIntegerLinearProgram()
             sage: ieq = (x[0] * vector([1,2]) >= 0)
@@ -334,6 +371,10 @@ class LinearTensorConstraintsParent_class(Parent):
     def linear_functions(self):
         """
         Return the parent for the linear functions
+
+        OUTPUT:
+
+        Instance of :class:`sage.numerical.linear_functions.LinearFunctionsParent_class`.
 
         EXAMPLES::
 
@@ -416,6 +457,4 @@ class LinearTensorConstraintsParent_class(Parent):
         """
         LT = self.linear_tensors()
         return LT.an_element() >= 0
-
-
 

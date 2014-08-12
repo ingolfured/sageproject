@@ -1292,12 +1292,15 @@ cdef class SemidefiniteProgram(SageObject):
         if linear_function is 0:
             return
 
+        from sage.numerical.linear_tensor_constraints import *
+        from sage.numerical.linear_tensor import *
+
         if is_LinearTensorConstraint(linear_function):
             c = linear_function
             if c.is_equation():
                 self.add_constraint(c.lhs-c.rhs, name=name)
                 self.add_constraint(-c.lhs+c.rhs, name=name)
-            else
+            else:
                 self.add_constraint(c.lhs-c.rhs, name=name)
 
         elif is_LinearTensor(linear_function):

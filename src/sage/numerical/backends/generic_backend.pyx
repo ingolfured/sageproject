@@ -13,9 +13,9 @@ class.
 
 AUTHORS:
 
-- Nathann Cohen (2010-10): initial implementation
-- Risan (2012-02)        : extension for PPL backend
-- Ingolfur (2014-06)     : extension for CVXOPT backend
+- Nathann Cohen (2010-10)      : initial implementation
+- Risan (2012-02)              : extension for PPL backend
+- Ingolfur Edvardsson (2014-06): extension for CVXOPT backend
 
 """
 
@@ -36,7 +36,9 @@ cdef class GenericBackend:
     cpdef zero(self):
         return self.base_ring()(0)
 
-    cpdef int add_variable(self, lower_bound=None, upper_bound=None, binary=False, continuous=True, integer=False, obj=None, name=None) except -1:
+    cpdef int add_variable(self, lower_bound=None, upper_bound=None, 
+                           binary=False, continuous=True, integer=False, 
+                           obj=None, name=None) except -1:
         """
         Add a variable.
 
@@ -181,7 +183,7 @@ cdef class GenericBackend:
         """
         raise NotImplementedError()
 
-    cpdef  objective_coefficient(self, int variable, coeff=None):
+    cpdef objective_coefficient(self, int variable, coeff=None):
         """
         Set or get the coefficient of a variable in the objective
         function
@@ -206,7 +208,7 @@ cdef class GenericBackend:
         """
         raise NotImplementedError()
 
-    cpdef  set_objective(self, list coeff, d = 0.0):
+    cpdef set_objective(self, list coeff, d = 0.0):
         """
         Set the objective function.
 
@@ -303,32 +305,77 @@ cdef class GenericBackend:
 
         INPUT:
 
-        - ``coefficients`` an iterable with ``(c,v)`` pairs where ``c``
-          is a variable index (integer) and ``v`` is a value (real
-          value).
+        - ``coefficients`` -- an iterable of pairs ``(i, v)``. In each
+          pair, ``i`` is a variable index (integer) and ``v`` is a
+          value (element of :meth:`base_ring`).
 
-        - ``lower_bound`` - a lower bound, either a real value or ``None``
+        - ``lower_bound`` -- element of :meth:`base_ring` or
+          ``None``. The lower bound.
 
-        - ``upper_bound`` - an upper bound, either a real value or ``None``
+        - ``upper_bound`` -- element of :meth:`base_ring` or
+          ``None``. The upper bound.
 
-        - ``name`` - an optional name for this row (default: ``None``)
+        - ``name`` -- string or ``None``. Optional name for this row.
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver") # optional - Nonexistent_LP_solver
-            sage: p.add_variables(5)                               # optional - Nonexistent_LP_solver
-            4
-            sage: p.add_linear_constraint(zip(range(5), range(5)), 2.0, 2.0) # optional - Nonexistent_LP_solver
-            sage: p.row(0)                                         # optional - Nonexistent_LP_solver
-            ([4, 3, 2, 1], [4.0, 3.0, 2.0, 1.0])                   # optional - Nonexistent_LP_solver
-            sage: p.row_bounds(0)                                  # optional - Nonexistent_LP_solver
-            (2.0, 2.0)
-            sage: p.add_linear_constraint( zip(range(5), range(5)), 1.0, 1.0, name='foo') # optional - Nonexistent_LP_solver
-            sage: p.row_name(-1)                                                          # optional - Nonexistent_LP_solver
-            "foo"
+            sage: from sage.numerical.backends.generic_backend import GenericBackend
+            sage: solver = GenericBackend()
+            sage: solver.add_linear_constraint(zip(range(5), range(5)), 2.0, 2.0)
+            Traceback (most recent call last):
+            ...
+            NotImplementedError: add_linear_constraint
         """
-        raise NotImplementedError()
+        raise NotImplementedError('add_linear_constraint')
+
+    cpdef add_linear_constraint_vector(self, degree, coefficients, lower_bound, upper_bound, name=None):
+        """
+        Add a vector-valued linear constraint.
+
+        .. NOTE::
+
+            This is the generic implementation, which will split the
+            vector-valued constraint into components and add these
+            individually. Backends are encouraged to replace it with
+            their own optimized implementation.
+
+        INPUT:
+
+        - ``degree`` -- integer. The vector degree, that is, the
+          number of new scalar constraints.
+
+        - ``coefficients`` -- an iterable of pairs ``(i, v)``. In each
+          pair, ``i`` is a variable index (integer) and ``v`` is a
+          vector (real and of length ``degree``).
+
+        - ``lower_bound`` -- either a vector or ``None``. The
+          component-wise lower bound.
+
+        - ``upper_bound`` -- either a vector or ``None``. The
+          component-wise upper bound.
+
+        - ``name`` -- string or ``None``. An optional name for all new
+          rows.
+
+        EXAMPLE::
+
+            sage: coeffs = ([0, vector([1, 2])], [1, vector([2, 3])])
+            sage: upper = vector([5, 5])
+            sage: lower = vector([0, 0])
+            sage: from sage.numerical.backends.generic_backend import GenericBackend
+            sage: solver = GenericBackend()
+            sage: solver.add_linear_constraint_vector(2, coeffs, lower, upper, 'foo')
+            Traceback (most recent call last):
+            ...
+            NotImplementedError: add_linear_constraint
+        """
+        for d in range(degree):
+            coefficients_d = []
+            for i, c in coefficients:
+                coefficients_d.append((i, c[d]))
+            lower_bound_d = None if lower_bound is None else lower_bound[d]
+            upper_bound_d = None if upper_bound is None else upper_bound[d] 
+            self.add_linear_constraint(coefficients_d, lower_bound_d, upper_bound_d, name=name)
 
     cpdef add_col(self, list indices, list coeffs):
         """
@@ -891,11 +938,8 @@ def default_mip_solver(solver = None):
         - Gurobi (``solver="Gurobi"``). See the `Gurobi
           <http://www.gurobi.com/>`_ web site.
 
-        - CVXOPT (``solver="CVXOPT"``). See the `CVXOPT
-          <http://cvxopt.org/>`_ web site.
-
         ``solver`` should then be equal to one of ``"GLPK"``,
-        ``"Coin"``, ``"CPLEX"``, ``"Gurobi"`` or ``"CVXOPT"``.
+        ``"Coin"``, ``"CPLEX"``,  ``"CVXOPT"``, ``"Gurobi"`` or ``"PPL"`` .
 
         - If ``solver=None`` (default), the current default solver's name is
           returned.
@@ -913,10 +957,17 @@ def default_mip_solver(solver = None):
         sage: default_mip_solver("GLPK")
         sage: default_mip_solver()
         'Glpk'
+        sage: default_mip_solver("PPL")
+        sage: default_mip_solver()
+        'Ppl'
+        sage: default_mip_solver("GUROBI")
+        Traceback (most recent call last):
+        ...
+        ValueError: Gurobi is not available. Please refer to the documentation to install it.
         sage: default_mip_solver("Yeahhhhhhhhhhh")
         Traceback (most recent call last):
         ...
-        ValueError: 'solver' should be set to 'GLPK', 'Coin', 'CPLEX', 'Gurobi', 'CVXOPT' or None.
+        ValueError: 'solver' should be set to 'GLPK', 'Coin', 'CPLEX', 'Gurobi', 'CVXOPT', 'PPL' or None.
         sage: default_mip_solver(former_solver)
     """
     global default_solver
@@ -927,7 +978,7 @@ def default_mip_solver(solver = None):
             return default_solver
 
         else:
-            for s in ["Cplex", "Gurobi", "Coin", "Glpk", "Cvxopt"]:
+            for s in ["Cplex", "Gurobi", "Coin", "Glpk"]:
                 try:
                     default_mip_solver(s)
                     return s
@@ -959,7 +1010,7 @@ def default_mip_solver(solver = None):
 
     elif solver == "Ppl":
         try:
-            from sage.numerical.backends.cvxopt_backend import CVXOPTBackend
+            from sage.numerical.backends.ppl_backend import PPLBackend
             default_solver = solver
         except ImportError:
             raise ValueError("PPL is not available. Please refer to the documentation to install it.")
@@ -970,13 +1021,6 @@ def default_mip_solver(solver = None):
             default_solver = solver
         except ImportError:
             raise ValueError("Gurobi is not available. Please refer to the documentation to install it.")
-
-    elif solver == "Cvxopt":
-        try:
-            from sage.numerical.backends.cvxopt_backend import CVXOPTBackend
-            default_solver = solver
-        except ImportError:
-            raise ValueError("CVXOPT is not available. Please refer to the documentation to install it.")
 
     elif solver == "Glpk":
         default_solver = solver
@@ -1006,9 +1050,6 @@ cpdef GenericBackend get_solver(constraint_generation = False, solver = None):
 
         - Gurobi (``solver="Gurobi"``). See the `Gurobi
           <http://www.gurobi.com/>`_ web site.
-
-        - CVXOPT (``solver="CVXOPT"``). See the `CVXOPT
-          <http://cvxopt.org/>`_ web site.
 
         - PPL (``solver="PPL"``). See the `PPL
           <http://bugseng.com/products/ppl/>`_ web site.
@@ -1065,10 +1106,6 @@ cpdef GenericBackend get_solver(constraint_generation = False, solver = None):
     elif solver == "Gurobi":
         from sage.numerical.backends.gurobi_backend import GurobiBackend
         return GurobiBackend()
-
-    elif solver == "Cvxopt":
-        from sage.numerical.backends.cvxopt_backend import CVXOPTBackend
-        return CVXOPTBackend()
 
     elif solver == "Ppl":
         from sage.numerical.backends.ppl_backend import PPLBackend
