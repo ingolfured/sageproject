@@ -224,48 +224,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         obj_constant_term = d;
 
 
-    cpdef add_col(self, list indices, list coeffs):
-        """
-        Add a column.
-
-        INPUT:
-
-        - ``indices`` (list of integers) -- this list constains the
-          indices of the constraints in which the variable's
-          coefficient is nonzero
-
-        - ``coeffs`` (list of matrices) -- associates a coefficient
-          to the variable in each of the constraints in which it
-          appears. Namely, the ith entry of ``coeffs`` corresponds to
-          the coefficient of the variable in the constraint
-          represented by the ith entry in ``indices``.
-
-        .. NOTE::
-
-            ``indices`` and ``coeffs`` are expected to be of the same
-            length.
-
-        EXAMPLE::
-
-            sage: #from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: #p = get_solver(solver = "CVXOPT")
-            sage: #p.ncols()
-            #0
-            sage: #p.nrows()
-            #0
-            sage: #p.add_linear_constraints(5)
-            sage: #p.add_col(range(5), [Matrix([[1,2],[3,4]]) for i in range(5)])
-            sage: #p.nrows()
-            #5
-        """
-        column = {}
-
-        for i in range(len(indices)):
-            column[indices[i]] = coeffs[i]
-
-
-        self.objective_function.append(0)
-        self.col_name_var.append(None)
 
     cpdef add_linear_constraint(self, coefficients, name=None):
         """
@@ -357,10 +315,26 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: b2 = matrix([[0.,  10.,  16.], [10., -10., -10.], [16., -10., 3.]])
             sage: b3 = matrix([[-5.,   2., -17.], [2.,  -6.,   8.], [-17.,  8., 6.]])
             sage: b4 = matrix([[14., 9., 40.], [9., 91., 10.], [40., 10., 15.]])
+            sage: p.add_constraint(a1*x[0] + a3*x[2] <= a4)
+            sage: p.add_constraint(b1*x[0] + b2*x[1] + b3*x[2] <= b4)
+            sage: round(p.solve(), 3)
+            -3.225
+            sage: p = SemidefiniteProgram(solver = "cvxopt", maximization=False)
+            sage: x = p.new_variable()
+            sage: p.set_objective(x[0] - x[1] + x[2])
+            sage: a1 = matrix([[-7., -11.], [-11., 3.]])
+            sage: a2 = matrix([[7., -18.], [-18., 8.]])
+            sage: a3 = matrix([[-2., -8.], [-8., 1.]])
+            sage: a4 = matrix([[33., -9.], [-9., 26.]])
+            sage: b1 = matrix([[-21., -11., 0.], [-11., 10., 8.], [0.,   8., 5.]])
+            sage: b2 = matrix([[0.,  10.,  16.], [10., -10., -10.], [16., -10., 3.]])
+            sage: b3 = matrix([[-5.,   2., -17.], [2.,  -6.,   8.], [-17.,  8., 6.]])
+            sage: b4 = matrix([[14., 9., 40.], [9., 91., 10.], [40., 10., 15.]])
             sage: p.add_constraint(a1*x[0] + a2*x[1] + a3*x[2] <= a4)
             sage: p.add_constraint(b1*x[0] + b2*x[1] + b3*x[2] <= b4)
             sage: round(p.solve(), 3)
             -3.154
+
         """
         from cvxopt import matrix as c_matrix, solvers
         from sage.rings.all import RDF
@@ -373,17 +347,20 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         else:
             c = [float(e) for e in self.objective_function]
         c = c_matrix(c)
-        debug = []
 
-        row_ind = -1
+        row_index = -1
         for row in self.coeffs_matrix:
-            row_ind += 1
+            row_index += 1
             row.sort()
-            index = -1
             G_temp = []
+            follow_index = -2
             for i,m in row:
-                #if i != index:
-                #    m = Matrix.zero(self.matrices_dim[row_ind], self.matrices_dim[row_ind])
+                follow_index += 1
+                #create the 0 matrices for cvxopt solver
+                if i != follow_index:
+                    for j in range(follow_index,i):
+                        G_temp.append([float(0) for t in range(self.matrices_dim[row_index]**2)])
+                follow_index = i
                 if i == -1:
                     h_temp = []
                     for row in m.rows():
@@ -392,7 +369,6 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
                             row_temp.append(-1*float(e))
                         h_temp.append(row_temp)
                     h_matrix += [c_matrix(h_temp)]
-                    debug += [h_temp]
                 else:
                     m = [float(e) for e in m.list()]
                     G_temp.append(m)
@@ -401,6 +377,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         #solvers comes from the cvxopt library
         for k,v in self.param.iteritems():
             solvers.options[k] = v
+
         self.answer = solvers.sdp(c,Gs=G_matrix,hs=h_matrix)
 
         #possible outcomes
@@ -427,18 +404,23 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
             sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "cvxopt")
-            sage: p.add_variables(2)
-            1
-            sage: p.add_linear_constraint([(0,matrix([[1,2],[3,4]]) ), (1,matrix([[2,2],[2,2]]))] )
-            sage: p.set_objective([2, 5])
-            sage: p.solve()
-            0
-            sage: round(p.get_objective_value(),4)
-            7.5
-            sage: round(p.get_variable_value(0),4)
-            0.0
-            sage: round(p.get_variable_value(1),4)
-            1.5
+            sage: p = SemidefiniteProgram(solver = "cvxopt", maximization=False)
+            sage: x = p.new_variable()
+            sage: p.set_objective(x[0] - x[1] + x[2])
+            sage: a1 = matrix([[-7., -11.], [-11., 3.]])
+            sage: a2 = matrix([[7., -18.], [-18., 8.]])
+            sage: a3 = matrix([[-2., -8.], [-8., 1.]])
+            sage: a4 = matrix([[33., -9.], [-9., 26.]])
+            sage: b1 = matrix([[-21., -11., 0.], [-11., 10., 8.], [0.,   8., 5.]])
+            sage: b2 = matrix([[0.,  10.,  16.], [10., -10., -10.], [16., -10., 3.]])
+            sage: b3 = matrix([[-5.,   2., -17.], [2.,  -6.,   8.], [-17.,  8., 6.]])
+            sage: b4 = matrix([[14., 9., 40.], [9., 91., 10.], [40., 10., 15.]])
+            sage: p.add_constraint(a1*x[0] + a2*x[1] + a3*x[2] <= a4)
+            sage: p.add_constraint(b1*x[0] + b2*x[1] + b3*x[2] <= b4)
+            sage: round(p.solve(),3)
+            -3.154
+            sage: round(p.get_backend().get_objective_value(),3)
+            -3.154
         """
         sum = self.obj_constant_term
         i = 0
@@ -456,21 +438,30 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
            Behaviour is undefined unless ``solve`` has been called before.
 
         EXAMPLE::
-
             sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_variables(2)
-            1
-            sage: p.add_linear_constraint([(0,1), (1, 2)])
-            sage: p.set_objective([2, 5])
-            sage: p.solve()
-            0
-            sage: round(p.get_objective_value(),4)
-            7.5
-            sage: round(p.get_variable_value(0),4)
-            0.0
-            sage: round(p.get_variable_value(1),4)
-            1.5
+            sage: p = get_solver(solver = "cvxopt")
+            sage: p = SemidefiniteProgram(solver = "cvxopt", maximization=False)
+            sage: x = p.new_variable()
+            sage: p.set_objective(x[0] - x[1] + x[2])
+            sage: a1 = matrix([[-7., -11.], [-11., 3.]])
+            sage: a2 = matrix([[7., -18.], [-18., 8.]])
+            sage: a3 = matrix([[-2., -8.], [-8., 1.]])
+            sage: a4 = matrix([[33., -9.], [-9., 26.]])
+            sage: b1 = matrix([[-21., -11., 0.], [-11., 10., 8.], [0.,   8., 5.]])
+            sage: b2 = matrix([[0.,  10.,  16.], [10., -10., -10.], [16., -10., 3.]])
+            sage: b3 = matrix([[-5.,   2., -17.], [2.,  -6.,   8.], [-17.,  8., 6.]])
+            sage: b4 = matrix([[14., 9., 40.], [9., 91., 10.], [40., 10., 15.]])
+            sage: p.add_constraint(a1*x[0] + a2*x[1] + a3*x[2] <= a4)
+            sage: p.add_constraint(b1*x[0] + b2*x[1] + b3*x[2] <= b4)
+            sage: round(p.solve(),3)
+            -3.154
+            sage: round(p.get_backend().get_variable_value(0),3)
+            -0.368
+            sage: round(p.get_backend().get_variable_value(1),3)
+            1.898
+            sage: round(p.get_backend().get_variable_value(2),3)
+            -0.888
+
         """
         return self.answer['x'][variable]
 

@@ -12,7 +12,6 @@ cdef class GenericSDPBackend:
     cpdef objective_coefficient(self, int variable, coeff=*)
     cpdef set_objective(self, list coeff, d=*)
     cpdef add_linear_constraint(self, constraints, name=*)
-    cpdef add_col(self, list indices, list coeffs)
     cpdef add_linear_constraints(self, int number, names=*)
     cpdef int solve(self) except -1
     cpdef get_objective_value(self)

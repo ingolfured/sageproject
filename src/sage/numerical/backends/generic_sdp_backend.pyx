@@ -208,41 +208,6 @@ cdef class GenericSDPBackend:
         """
         raise NotImplementedError()
 
-    cpdef add_col(self, list indices, list coeffs):
-        """
-        Add a column.
-
-        INPUT:
-
-        - ``indices`` (list of integers) -- this list constains the
-          indices of the constraints in which the variable's
-          coefficient is nonzero
-
-        - ``coeffs`` (list of real values) -- associates a coefficient
-          to the variable in each of the constraints in which it
-          appears. Namely, the ith entry of ``coeffs`` corresponds to
-          the coefficient of the variable in the constraint
-          represented by the ith entry in ``indices``.
-
-        .. NOTE::
-
-            ``indices`` and ``coeffs`` are expected to be of the same
-            length.
-
-        EXAMPLE::
-
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "Nonexistent_LP_solver")  # optional - Nonexistent_LP_solver
-            sage: p.ncols()                                       # optional - Nonexistent_LP_solver
-            0
-            sage: p.nrows()                                       # optional - Nonexistent_LP_solver
-            0
-            sage: p.add_linear_constraints(5, 0, None)            # optional - Nonexistent_LP_solver
-            sage: p.add_col(range(5), range(5))                   # optional - Nonexistent_LP_solver
-            sage: p.nrows()                                       # optional - Nonexistent_LP_solver
-            5
-        """
-        raise NotImplementedError()
 
     cpdef add_linear_constraints(self, int number, names=None):
         """
