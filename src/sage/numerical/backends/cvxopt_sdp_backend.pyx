@@ -22,8 +22,7 @@ from cvxopt import solvers
 
 cdef class CVXOPTSDPBackend(GenericSDPBackend):
     cdef list objective_function #c_matrix
-    cdef list G_matrix
-    cdef list h_matrix
+    cdef list coeffs_matrix
     cdef str prob_name
     cdef bint is_maximize
 
@@ -45,8 +44,8 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         """
 
         self.objective_function = [] #c_matrix in the example for cvxopt
-        self.G_matrix = []
         self.prob_name = None
+        self.coeffs_matrix = []
         self.obj_constant_term = 0
         self.matrices_dim = {}
         self.is_maximize = 1
@@ -66,6 +65,8 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         else:
             self.set_sense(-1)
 
+    def get_matrix(self):
+        return self.coeffs_matrix
 
     cpdef int add_variable(self, obj=0.0,  name=None) except -1:
         """
@@ -101,8 +102,10 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: p.objective_coefficient(2)
             1.00000000000000
         """
-        for dim in self.matrices_dim:
-            self.G_matrix.append(Matrix(dim))
+        i = 0
+        for row in self.coeffs_matrix:
+            row.append( Matrix.zero(self.matrices_dim[i]) )
+            i+=1
         self.col_name_var.append(name)
         self.objective_function.append(obj)
         return len(self.objective_function) - 1
@@ -244,25 +247,22 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
         EXAMPLE::
 
-            sage: from sage.numerical.backends.generic_sdp_backend import get_solver
-            sage: p = get_solver(solver = "CVXOPT")
-            sage: p.ncols()
-            0
-            sage: p.nrows()
-            0
-            sage: p.add_linear_constraints(5, None)
-            sage: p.add_col(range(5), range(5))
-            sage: p.nrows()
-            5
+            sage: #from sage.numerical.backends.generic_sdp_backend import get_solver
+            sage: #p = get_solver(solver = "CVXOPT")
+            sage: #p.ncols()
+            #0
+            sage: #p.nrows()
+            #0
+            sage: #p.add_linear_constraints(5)
+            sage: #p.add_col(range(5), [Matrix([[1,2],[3,4]]) for i in range(5)])
+            sage: #p.nrows()
+            #5
         """
-        column = []
-        for i in range(len(indices)):
-            column.append(0.0)
+        column = {}
 
         for i in range(len(indices)):
             column[indices[i]] = coeffs[i]
 
-        self.G_matrix.append(column)
 
         self.objective_function.append(0)
         self.col_name_var.append(None)
@@ -275,7 +275,8 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
         - ``coefficients`` an iterable with ``(c,v)`` pairs where ``c``
           is a variable index (integer) and ``v`` is a value (real
-          value). If c is -1 it represents the constant coefficient.
+          value). The pairs come sorted by indices. If c is -1 it 
+          represents the constant coefficient.
 
         - ``name`` - an optional name for this row (default: ``None``)
 
@@ -287,21 +288,24 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             1
             sage: p.add_linear_constraint(  [(0, matrix([[33., -9.], [-9., 26.]])) , (1,  matrix([[-7., -11.] ,[ -11., 3.]]) )])
             sage: p.row(0)
-            ([1, 2, 3, 4], [1, 2, 3, 4])
-            sage: p.add_linear_constraint( zip(range(5), range(5)), name='foo')
+            ([0, 1], [[ 33.0000000000000 -9.00000000000000]
+            [-9.00000000000000  26.0000000000000], [-7.00000000000000 -11.0000000000000]
+            [-11.0000000000000  3.00000000000000]])
+            sage: p.add_linear_constraint(  [(0, matrix([[33., -9.], [-9., 26.]])) , (1,  matrix([[-7., -11.] ,[ -11., 3.]]) )],name="fun")
             sage: p.row_name(-1)
-            'foo'
+            'fun'
         """
         from sage.matrix.matrix import is_Matrix
-        Gm = []
-        for i,m in coefficients:
+        for t in coefficients:
+            m = t[1]
             if not is_Matrix(m):
                 raise Exception("The coefficients must be matrices")
-            if i == -1:
-                self.h_matrix += [m]
-            else:
-                Gm.append(m.list())
-        self.G_matrix += [Matrix(Gm)]
+            if not m.is_square():
+                raise Exception("The matrix has to be a square")
+            if self.matrices_dim.get(self.nrows()) != None and m.dimensions()[0] != self.matrices_dim.get(self.nrows()):
+                raise Exception("The matrces have to be of the same dimension")
+        self.coeffs_matrix.append(coefficients)
+        self.matrices_dim[self.nrows()] = m.dimensions()[0] #
         self.row_name_var.append(name)
 
     cpdef add_linear_constraints(self, int number, names=None):
@@ -320,18 +324,13 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
-            sage: p.add_linear_constraints(5, None, 2)
+            sage: p.add_linear_constraints(5)
             sage: p.row(4)
             ([], [])
-            sage: p.row_bounds(4)
-            (None, 2)
         """
-        if names is not None:
-            for i in range(number):
-                self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ),names)
-        else:
-            for i in range(number):
-                self.add_linear_constraint( zip(range(self.ncols()+1),[0]*(self.ncols()+1) ) )
+        for i in range(number):
+            self.add_linear_constraint(zip(range(self.ncols()+1),[Matrix.zero(1,1) for i in range(self.ncols()+1)]),
+                                       name=None if names is None else names[i])
 
 
 
@@ -360,38 +359,49 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: b4 = matrix([[14., 9., 40.], [9., 91., 10.], [40., 10., 15.]])
             sage: p.add_constraint(a1*x[0] + a2*x[1] + a3*x[2] <= a4)
             sage: p.add_constraint(b1*x[0] + b2*x[1] + b3*x[2] <= b4)
-            sage: round(p.solve(), 2)
-            -3.16
+            sage: round(p.solve(), 3)
+            -3.154
         """
-        from cvxopt import matrix, solvers
-        h = []
-
-
-        G = []
-
-
-        for col in self.G_matrix:
-            tempcol = []
-            for i in range(len(col)):
-                tempcol.append( float(col[i]) )
-            G.append(tempcol)
-
-        G = matrix(G)
+        from cvxopt import matrix as c_matrix, solvers
+        from sage.rings.all import RDF
+        G_matrix = []
+        h_matrix = []
 
         #cvxopt minimizes on default
         if self.is_maximize:
             c = [-1 * float(e) for e in self.objective_function]
         else:
             c = [float(e) for e in self.objective_function]
-        c = matrix(c)
+        c = c_matrix(c)
+        debug = []
 
-        h = [float(e) for e in h]
-        h = matrix(h)
+        row_ind = -1
+        for row in self.coeffs_matrix:
+            row_ind += 1
+            row.sort()
+            index = -1
+            G_temp = []
+            for i,m in row:
+                #if i != index:
+                #    m = Matrix.zero(self.matrices_dim[row_ind], self.matrices_dim[row_ind])
+                if i == -1:
+                    h_temp = []
+                    for row in m.rows():
+                        row_temp = []
+                        for e in row:
+                            row_temp.append(-1*float(e))
+                        h_temp.append(row_temp)
+                    h_matrix += [c_matrix(h_temp)]
+                    debug += [h_temp]
+                else:
+                    m = [float(e) for e in m.list()]
+                    G_temp.append(m)
+            G_matrix += [c_matrix(G_temp)]
 
         #solvers comes from the cvxopt library
         for k,v in self.param.iteritems():
             solvers.options[k] = v
-        self.answer = solvers.lp(c,G,h)
+        self.answer = solvers.sdp(c,Gs=G_matrix,hs=h_matrix)
 
         #possible outcomes
         if self.answer['status'] == 'optimized':
@@ -419,7 +429,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: p = get_solver(solver = "cvxopt")
             sage: p.add_variables(2)
             1
-            sage: p.add_linear_constraint([(0,1), (1,2)], None, 3)
+            sage: p.add_linear_constraint([(0,matrix([[1,2],[3,4]]) ), (1,matrix([[2,2],[2,2]]))] )
             sage: p.set_objective([2, 5])
             sage: p.solve()
             0
@@ -451,7 +461,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(2)
             1
-            sage: p.add_linear_constraint([(0,1), (1, 2)], None, 3)
+            sage: p.add_linear_constraint([(0,1), (1, 2)])
             sage: p.set_objective([2, 5])
             sage: p.solve()
             0
@@ -495,7 +505,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             0
             sage: p.add_variables(5)
             4
-            sage: p.add_linear_constraints(2, 2.0, None)
+            sage: p.add_linear_constraints(2)
             sage: p.nrows()
             2
         """
@@ -564,21 +574,19 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             sage: p = get_solver(solver = "CVXOPT")
             sage: p.add_variables(5)
             4
-            sage: p.add_linear_constraint(zip(range(5), range(5)), 2, 2)
+            sage: p.add_linear_constraint(  [(0, matrix([[33., -9.], [-9., 26.]])) , (1,  matrix([[-7., -11.] ,[ -11., 3.]]) )])
             sage: p.row(0)
-            ([1, 2, 3, 4], [1, 2, 3, 4])
-            sage: p.row_bounds(0)
-            (2, 2)
+            ([0, 1], [[ 33.0000000000000 -9.00000000000000]
+            [-9.00000000000000  26.0000000000000], [-7.00000000000000 -11.0000000000000]
+            [-11.0000000000000  3.00000000000000]])
         """
-        coeff = []
-        idx = []
-        index = 0
-        for col in self.G_matrix:
-            if col[i] != 0:
-                idx.append(index)
-                coeff.append(col[i])
-            index += 1
-        return (idx, coeff)
+        indices = []
+        matrices = []
+        for index,m in self.coeffs_matrix[i]:
+            if m != Matrix.zero(self.matrices_dim[i],self.matrices_dim[i]):
+                indices.append(index)
+                matrices.append(m)
+        return (indices, matrices)
 
 
 
@@ -595,9 +603,9 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
 
             sage: from sage.numerical.backends.generic_sdp_backend import get_solver
             sage: p = get_solver(solver = "CVXOPT")
-            sage: p.add_linear_constraints(1, 2, None, names="Empty constraint 1")
+            sage: p.add_linear_constraints(1, names="A")
             sage: p.row_name(0)
-            'Empty constraint 1'
+            'A'
 
         """
         if self.row_name_var[index] is not None:

@@ -1292,22 +1292,27 @@ cdef class SemidefiniteProgram(SageObject):
         if linear_function is 0:
             return
 
-        from sage.numerical.linear_tensor_constraints import *
-        from sage.numerical.linear_tensor import *
+        from sage.numerical.linear_tensor_constraints import is_LinearTensorConstraint
+        from sage.numerical.linear_tensor import is_LinearTensor
 
         if is_LinearTensorConstraint(linear_function):
             c = linear_function
             if c.is_equation():
-                self.add_constraint(c.lhs-c.rhs, name=name)
-                self.add_constraint(-c.lhs+c.rhs, name=name)
+                self.add_constraint(c.lhs()-c.rhs(), name=name)
+                self.add_constraint(-c.lhs()+c.rhs(), name=name)
             else:
-                self.add_constraint(c.lhs-c.rhs, name=name)
+                self.add_constraint(c.lhs()-c.rhs(), name=name)
 
         elif is_LinearTensor(linear_function):
-            self._backend.add_linear_constraint(linear_function._f.dict.items(), name)
+            l = linear_function.dict().items()
+            l.sort()
+            self._backend.add_linear_constraint(l, name)
 
         else:
             raise ValueError('argument must be a linear function or constraint, got '+str(linear_function))
+
+    def get_matrix(self):
+        return self._backend.get_matrix()
 
 
     def solve(self, log=None, objective_only=False):
