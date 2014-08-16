@@ -24,7 +24,6 @@ cdef class SemidefiniteProgram(SageObject):
 
 cdef class SDPVariable(Element):
     cdef SemidefiniteProgram _p
-    cdef int _dim
     cdef dict _dict
     cdef str _name
     cdef bint _hasname

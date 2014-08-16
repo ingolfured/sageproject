@@ -23,7 +23,6 @@ from cvxopt import solvers
 cdef class CVXOPTSDPBackend(GenericSDPBackend):
     cdef list objective_function #c_matrix
     cdef list coeffs_matrix
-    cdef str prob_name
     cdef bint is_maximize
 
     cdef list row_name_var
@@ -44,7 +43,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         """
 
         self.objective_function = [] #c_matrix in the example for cvxopt
-        self.prob_name = None
+        self.name = ""
         self.coeffs_matrix = []
         self.obj_constant_term = 0
         self.matrices_dim = {}
@@ -104,7 +103,10 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         """
         i = 0
         for row in self.coeffs_matrix:
-            row.append( Matrix.zero(self.matrices_dim[i]) )
+            if self.matrices_dim.get(i) != None:
+                row.append( Matrix.zero(self.matrices_dim[i], self.matrices_dim[i]) )
+            else:
+                row.append(0)
             i+=1
         self.col_name_var.append(name)
         self.objective_function.append(obj)
@@ -378,7 +380,10 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         for k,v in self.param.iteritems():
             solvers.options[k] = v
 
-        self.answer = solvers.sdp(c,Gs=G_matrix,hs=h_matrix)
+        try:
+            self.answer = solvers.sdp(c,Gs=G_matrix,hs=h_matrix)
+        except ValueError:
+            raise SDPSolverException("CVXOPT: Something went wrong so the cvxopt solver could not start solving the system.")
 
         #possible outcomes
         if self.answer['status'] == 'optimized':

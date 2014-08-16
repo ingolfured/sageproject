@@ -340,7 +340,7 @@ cdef class SemidefiniteProgram(SageObject):
              sage: p.add_constraint(b1*x[0] + b2*x[1] <= b3)
              sage: p.add_constraint(b1*x[0] + b2*x[1] <= a1)
              sage: print p
-             Semidefinite Program ( maximization, 2 variables, 1 constraints )
+             Semidefinite Program ( maximization, 2 variables, 3 constraints )
          """
          cdef GenericSDPBackend b = self._backend
 
@@ -361,7 +361,7 @@ cdef class SemidefiniteProgram(SageObject):
         EXAMPLE::
 
             sage: p = SemidefiniteProgram()
-            sage: v = p.new_variable()
+            sage: x = p.new_variable()
             sage: a1 = matrix([[1, 2.], [2., 3.]])
             sage: a2 = matrix([[3, 4.], [4., 5.]])
             sage: a3 = matrix([[5, 6.], [6., 7.]])
@@ -450,7 +450,7 @@ cdef class SemidefiniteProgram(SageObject):
         """
         self._backend.problem_name(name)
 
-    def new_variable(self, dim=1, name=""):
+    def new_variable(self, name=""):
         r"""
         Returns an instance of ``SDPVariable`` associated
         to the current instance of ``SemidefiniteProgram``.
@@ -470,25 +470,21 @@ cdef class SemidefiniteProgram(SageObject):
           If ``x`` has dimension `2`, its fields will be of the form
           ``x[key1][key2]``. Deprecated.
 
-        - ``name`` -- string. Associates a name to the variable. This
-          is only useful when exporting the linear program to a file
-          using ``write_mps`` or ``write_lp``, and has no other
-          effect.
-
+        - ``name`` -- string. Associates a name to the variable.
 
         EXAMPLE::
 
             sage: p = SemidefiniteProgram()
             sage: x = p.new_variable()
-            sage: p.add_constraint(x[0]+x[3] <= 0)
+            sage: a1 = matrix([[1, 2.], [2., 3.]])
+            sage: p.add_constraint(a1*x[0]+a1*x[3] <= 0)
             sage: p.show()
             Maximization:
             <BLANKLINE>
             Constraints:
-              x_0 + x_3 <= 0
+              constraint_0: [1.0 2.0][2.0 3.0]x_1 <=  [-1.0 -2.0][-2.0 -3.0]
             Variables:
-              x_0, x_3
-
+               x_0,  x_1
         """
 
 
@@ -496,7 +492,6 @@ cdef class SemidefiniteProgram(SageObject):
             name = self._first_variable_names.pop(0)
 
         return sdp_variable_parent(self,
-                      dim=dim,
                       name=name)
 
     def _first_ngens(self, n):
@@ -689,20 +684,22 @@ cdef class SemidefiniteProgram(SageObject):
 
             sage: p = SemidefiniteProgram(solver = "cvxopt", maximization = False)
             sage: x = p.new_variable()
-            sage: p.set_objective(x[0] - x[1])
+            sage: p.set_objective(x[3] - x[5])
             sage: a1 = matrix([[1, 2.], [2., 3.]])
             sage: a2 = matrix([[3, 4.], [4., 5.]])
             sage: a3 = matrix([[5, 6.], [6., 7.]])
             sage: b1 = matrix([[1, 1.], [1., 1.]])
             sage: b2 = matrix([[2, 2.], [2., 2.]])
             sage: b3 = matrix([[3, 3.], [3., 3.]])
-            sage: p.add_constraint(a1*x[0] + a2*x[1] <= a3)
-            sage: p.add_constraint(b1*x[0] + b2*x[1] <= b3)
+            sage: p.add_constraint(a1*x[3] + a2*x[5] <= a3)
+            sage: p.add_constraint(b1*x[3] + b2*x[5] <= b3)
+            sage: round(p.solve(),3)
+            -3.0
 
-        To return  the optimal value of ``x[1]``::
+        To return  the optimal value of ``x[3]``::
 
-            sage: p.get_values(x[1])
-            2.0
+            sage: round(p.get_values(x[3]),3)
+            -1.0
 
         To get a dictionary identical to ``x`` containing optimal
         values for the corresponding variables ::
@@ -713,42 +710,16 @@ cdef class SemidefiniteProgram(SageObject):
 
         Obviously, it also works with variables of higher dimension::
 
-            sage: y_sol = p.get_values(y)
+            sage: x_sol = p.get_values(x)
 
-        We could also have tried ::
-
-            sage: [x_sol, y_sol] = p.get_values(x, y)
-
-        Or::
-
-            sage: [x_sol, y_sol] = p.get_values([x, y])
-
-        TESTS:
-
-        When 'dim' will be removed, also remove from this function the code that
-        uses it::
-
-            sage: p = SemidefiniteProgram()
-            sage: b = p.new_variable(dim=2)
-            doctest:...: DeprecationWarning: The 'dim' argument will soon disappear. Fortunately variable[1,2] is easier to use than variable[1][2]
-            See http://trac.sagemath.org/15489 for details.
-            sage: p.add_constraint(b[1][2] +  b[2][3] == 0)
-            sage: _ = p.solve()
-            sage: _ = p.get_values(b)
         """
         val = []
         for l in lists:
             if isinstance(l, SDPVariable):
-                if l.depth() == 1:
                     c = {}
                     for (k,v) in l.items():
                         #c[k] = self._values[v] if self._values.has_key(v) else None
                         c[k] = self._backend.get_variable_value(self._variables[v])
-                    val.append(c)
-                else:
-                    c = {}
-                    for (k,v) in l.items():
-                        c[k] = self.get_values(v)
                     val.append(c)
             elif isinstance(l, list):
                 if len(l) == 1:
@@ -773,32 +744,32 @@ cdef class SemidefiniteProgram(SageObject):
 
         INPUT:
 
-        - ``obj`` -- A linear function to be optimized.
+        - ``obj`` -- A semidefinite function to be optimized.
           ( can also be set to ``None`` or ``0`` when just
           looking for a feasible solution )
 
         EXAMPLE:
 
-        Let's solve the following linear program::
+        Let's solve the following semidefinite program::
 
             Maximize:
               x + 5 * y
             Constraints:
-              x + 0.2 y       <= 4
-              1.5 * x + 3 * y <= 4
+              [1,2][2,3]x + [1,1][1,1] y       <= [1,-1][-1,1]
             Variables:
-              x is Real (min = 0, max = None)
-              y is Real (min = 0, max = None)
+              x, y
 
         This linear program can be solved as follows::
 
             sage: p = SemidefiniteProgram(maximization=True)
             sage: x = p.new_variable()
             sage: p.set_objective(x[1] + 5*x[2])
-            sage: p.add_constraint(x[1] + 2/10*x[2], max=4)
-            sage: p.add_constraint(1.5*x[1]+3*x[2], max=4)
+            sage: a1 = matrix([[1,2],[2,3]])
+            sage: a2 = matrix([[1,1],[1,1]])
+            sage: a3 = matrix([[1,-1],[-1,1]])
+            sage: p.add_constraint(a1*x[1]+a2*x[2] <= a3)
             sage: round(p.solve(),5)
-            6.66667
+            16.2
             sage: p.set_objective(None)
             sage: _ = p.solve()
         """
@@ -836,47 +807,43 @@ cdef class SemidefiniteProgram(SageObject):
 
         EXAMPLE:
 
-        Consider the following linear program::
+        Let's solve the following semidefinite program::
 
             Maximize:
               x + 5 * y
             Constraints:
-              x + 0.2 y       <= 4
-              1.5 * x + 3 * y <= 4
+              [1,2][2,3]x + [1,1][1,1] y       <= [1,-1][-1,1]
             Variables:
-              x is Real (min = 0, max = None)
-              y is Real (min = 0, max = None)
+              x, y
 
-        It can be solved as follows::
+        This linear program can be solved as follows::
 
             sage: p = SemidefiniteProgram(maximization=True)
             sage: x = p.new_variable()
             sage: p.set_objective(x[1] + 5*x[2])
-            sage: p.add_constraint(x[1] + 0.2*x[2], max=4)
-            sage: p.add_constraint(1.5*x[1] + 3*x[2], max=4)
-            sage: round(p.solve(),6)
-            6.666667
+            sage: a1 = matrix([[1,2],[2,3]])
+            sage: a2 = matrix([[1,1],[1,1]])
+            sage: a3 = matrix([[1,-1],[-1,1]])
+            sage: p.add_constraint(a1*x[1]+a2*x[2] <= a3)
+            sage: round(p.solve(),5)
+            16.2
+
 
         To add a constrain we give ``add_constraint`` this
         very expression::
 
-            sage: p.add_constraint( x[5] + 3*x[7] <= x[6] + 3 )
+            sage: p.add_constraint(a1*x[2] <= a3)
 
         One can also define double-bounds or equality using symbols
         ``<=``, ``>=`` and ``==``::
 
-            sage: p.add_constraint( x[5] + 3*x[7] == x[6] + 3 )
-            sage: p.add_constraint( x[5] + 3*x[7] <= x[6] + 3 <= x[8] + 27 )
+            sage: p.add_constraint(a1*x[2] >= a2)
+            sage: p.add_constraint(a1*x[1] == a3)
 
-        The previous program can be rewritten::
+        And then we get::
 
-            sage: p = SemidefiniteProgram(maximization=True)
-            sage: x = p.new_variable()
-            sage: p.set_objective(x[1] + 5*x[2])
-            sage: p.add_constraint(x[1] + 0.2*x[2] <= 4)
-            sage: p.add_constraint(1.5*x[1] + 3*x[2] <= 4)
             sage: round(p.solve(), 5)
-            6.66667
+            "correct number comes here"
 
         TESTS:
 
@@ -884,20 +851,21 @@ cdef class SemidefiniteProgram(SageObject):
 
             sage: p = SemidefiniteProgram(solver = "cvxopt")
             sage: b = p.new_variable()
-            sage: p.add_constraint( b[8] - b[15] <= 3*b[8] + 9)
+            sage: a1 = matrix([[1,2],[2,3]])
+            sage: a2 = matrix([[1,-2],[-2,4]])
+            sage: p.add_constraint(a1*b[8] - a1*b[15] <= a2*b[8])
             sage: p.show()
             Maximization:
             <BLANKLINE>
             Constraints:
-              -2.0 x_0 - x_1 <= 9.0
+               REIKNA!!
             Variables:
-              x_0 is a continuous variable (min=0.0, max=+oo)
-              x_1 is a continuous variable (min=0.0, max=+oo)
+              x_0, x_1
 
         Empty constraint::
 
             sage: p=SemidefiniteProgram()
-            sage: p.add_constraint(sum([]),min=2)
+            sage: p.add_constraint(sum([]))
 
 
         """
@@ -907,7 +875,7 @@ cdef class SemidefiniteProgram(SageObject):
         from sage.numerical.linear_tensor_constraints import is_LinearTensorConstraint
         from sage.numerical.linear_tensor import is_LinearTensor
 
-        if is_LinearTensorConstraint(linear_function):
+        if is_LinearTensorConstraint(linear_function) or is_LinearConstraint(linear_function):
             c = linear_function
             if c.is_equation():
                 self.add_constraint(c.lhs()-c.rhs(), name=name)
@@ -915,7 +883,7 @@ cdef class SemidefiniteProgram(SageObject):
             else:
                 self.add_constraint(c.lhs()-c.rhs(), name=name)
 
-        elif is_LinearTensor(linear_function):
+        elif is_LinearFunction(linear_function) or is_LinearTensor(linear_function):
             l = linear_function.dict().items()
             l.sort()
             self._backend.add_linear_constraint(l, name)
@@ -1059,15 +1027,15 @@ cdef class SemidefiniteProgram(SageObject):
         This example uses the simplex algorthm and prints information::
 
             sage: p = SemidefiniteProgram(solver="cvxopt")
+            sage: x = p.new_variable()
             sage: a1 = matrix([[1, 2.], [2., 3.]])
             sage: a2 = matrix([[3, 4.], [4., 5.]])
-            sage: a3 = matrix([[5, 6.], [6., 7.]])
-            sage: p.add_constraint(a1*x[0] + a2*x[1] <= a3)
+            sage: p.add_constraint(a1*x[0] + a2*x[1] <= a1)
             sage: b = p.get_backend()
             sage: b.get_matrix()[0][0]
             (
-                [-5.0 -6.0]
-            -1, [-6.0 -7.0]
+                [-1.0 -2.0]
+            -1, [-2.0 -3.0]
             )
         """
         return self._backend
@@ -1092,21 +1060,16 @@ class SDPSolverException(RuntimeError):
 
         TESTS:
 
-        No  solution::
+        No solution::
 
             sage: p=SemidefiniteProgram(solver="cvxopt")
             sage: v=p.new_variable()
-            sage: p.add_constraint(v[0] <= 5.5)
-            sage: p.add_constraint(v[0] >= 7.6)
             sage: p.set_objective(v[0])
-
-
-        Tests of cvxopt's Exceptions::
-
             sage: p.solve()
+            ...
             Traceback (most recent call last):
             ...
-            SDPSolverException: 'cvxopt : Solution is undefined'
+            SDPSolverException: 'CVXOPT : Something went...'
         """
         self.value = value
 
@@ -1135,7 +1098,7 @@ cdef class SDPVariable(Element):
         :meth:`SemidefiniteProgram.new_variable`.
     """
 
-    def __init__(self, parent, sdp, dim, name):
+    def __init__(self, parent, sdp, name):
         r"""
         Constructor for ``SDPVariable``.
 
@@ -1147,7 +1110,6 @@ cdef class SDPVariable(Element):
         - ``sdp`` -- :class:`SemidefiniteProgram`. The
           underlying linear program.
 
-        - ``dim`` -- the integer defining the definition of the variable.
 
         - ``name`` -- A name for the ``SDPVariable``.
 
@@ -1165,23 +1127,16 @@ cdef class SDPVariable(Element):
             SDPVariable of dimension 1.
         """
         super(SDPVariable, self).__init__(parent)
-        self._dim = dim
         self._dict = {}
         self._p = sdp
         self._name = name
 
-        if dim > 1:
-            from sage.misc.superseded import deprecation
-            deprecation(15489, "The 'dim' argument will soon disappear. "+
-                        "Fortunately variable[1,2] is easier to use than "+
-                        "variable[1][2]")
 
     def __getitem__(self, i):
         r"""
         Returns the symbolic variable corresponding to the key.
 
         Returns the element asked, otherwise creates it.
-        (When depth>1, recursively creates the variables).
 
         EXAMPLE::
 
@@ -1191,36 +1146,17 @@ cdef class SDPVariable(Element):
             sage: v[0]
             x_0
 
-        TESTS:
-
-        This function contains "dim" code that will have to be removed::
-
-            sage: p = SemidefiniteProgram()
-            sage: b = p.new_variable(dim=2)
         """
         cdef int j
         if i in self._dict:
             return self._dict[i]
-        elif self._dim == 1:
-            zero = self._p._backend.zero()
-            name = self._name + "[" + str(i) + "]" if self._name else None
-            j = self._p._backend.add_variable(
-                obj=zero,
-                name=name,
-            )
-            v = self._p.linear_function({j : 1})
-            self._p._variables[v] = j
-            self._dict[i] = v
-            return v
-        else:
-            name = self._name + "[" + str(i) + "]" if self._name else ''
-            self._dict[i] = self.parent().element_class(
-                self.parent(),
-                self._p,
-                dim=self._dim - 1,
-                name=name,
-            )
-            return self._dict[i]
+        zero = self._p._backend.zero()
+        name = self._name + "[" + str(i) + "]" if self._name else None
+        j = self._p._backend.add_variable( obj=zero, name=name)
+        v = self._p.linear_function({j : 1})
+        self._p._variables[v] = j
+        self._dict[i] = v
+        return v
 
 
     def _repr_(self):
@@ -1230,15 +1166,11 @@ cdef class SDPVariable(Element):
         EXAMPLE::
 
             sage: p=SemidefiniteProgram()
-            sage: v=p.new_variable(dim=3)
+            sage: v=p.new_variable()
             sage: v
-            SDPVariable of dimension 3.
-            sage: v[2][5][9]
-            x_0
-            sage: v
-            SDPVariable of dimension 3.
+            SDPVariable of dimension 1.
         """
-        return "SDPVariable of dimension " + str(self._dim) + "."
+        return "SDPVariable of dimension 1."
 
     def keys(self):
         r"""
@@ -1268,19 +1200,6 @@ cdef class SDPVariable(Element):
         """
         return self._dict.items()
 
-    def depth(self):
-        r"""
-        Returns the current variable's depth.
-
-        EXAMPLE::
-
-            sage: p = SemidefiniteProgram()
-            sage: v = p.new_variable()
-            sage: p.set_objective(v[0] + v[1])
-            sage: v.depth()
-            1
-        """
-        return self._dim
 
     def values(self):
         r"""
@@ -1397,7 +1316,7 @@ cdef class SDPVariableParent(Parent):
         """
         raise TypeError('disallow coercion')
 
-    def _element_constructor_(self, sdp, dim=1, name=""):
+    def _element_constructor_(self, sdp, name=""):
         """
         The Element constructor
 
@@ -1411,7 +1330,7 @@ cdef class SDPVariableParent(Parent):
             sage: sdp.new_variable()    # indirect doctest
             SDPVariable of dimension 1.
         """
-        return self.element_class(self, sdp, dim, name)
+        return self.element_class(self, sdp, name)
 
 
 sdp_variable_parent = SDPVariableParent()
