@@ -342,12 +342,16 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         from sage.rings.all import RDF
         G_matrix = []
         h_matrix = []
+        debug_g = []
+        debug_h = []
+        debug_c = []
 
         #cvxopt minimizes on default
         if self.is_maximize:
             c = [-1 * float(e) for e in self.objective_function]
         else:
             c = [float(e) for e in self.objective_function]
+        debug_c = (c)
         c = c_matrix(c)
 
         row_index = -1
@@ -355,14 +359,8 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
             row_index += 1
             row.sort()
             G_temp = []
-            follow_index = -2
+            add_null = [True for i in range(self.ncols())]
             for i,m in row:
-                follow_index += 1
-                #create the 0 matrices for cvxopt solver
-                if i != follow_index:
-                    for j in range(follow_index,i):
-                        G_temp.append([float(0) for t in range(self.matrices_dim[row_index]**2)])
-                follow_index = i
                 if i == -1:
                     h_temp = []
                     for row in m.rows():
@@ -371,19 +369,23 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
                             row_temp.append(-1*float(e))
                         h_temp.append(row_temp)
                     h_matrix += [c_matrix(h_temp)]
+                    debug_h += [h_temp]
                 else:
+                    add_null[i] = False
                     m = [float(e) for e in m.list()]
                     G_temp.append(m)
+            for j in range(self.ncols()):
+                if add_null[j]:
+                    G_temp.insert(j,[float(0) for t in range(self.matrices_dim[row_index]**2)])
             G_matrix += [c_matrix(G_temp)]
+            debug_g += [(G_temp)]
+        #raise Exception("G_matrix " + str(debug_g) + "\nh_matrix: " + str(debug_h) + "\nc_matrix: " + str(debug_c))
 
         #solvers comes from the cvxopt library
         for k,v in self.param.iteritems():
             solvers.options[k] = v
 
-        try:
-            self.answer = solvers.sdp(c,Gs=G_matrix,hs=h_matrix)
-        except ValueError:
-            raise SDPSolverException("CVXOPT: Something went wrong so the cvxopt solver could not start solving the system.")
+        self.answer = solvers.sdp(c,Gs=G_matrix,hs=h_matrix)
 
         #possible outcomes
         if self.answer['status'] == 'optimized':
@@ -631,6 +633,7 @@ cdef class CVXOPTSDPBackend(GenericSDPBackend):
         if self.col_name_var[index] is not None:
             return self.col_name_var[index]
         return "x_" + repr(index)
+
 
 
     cpdef solver_parameter(self, name, value = None):
